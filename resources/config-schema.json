@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Invisible Errors Detector — Configuration",
+  "type": "object",
+  "properties": {
+    "enable":     { "type": "boolean", "default": true },
+    "runOnSave":  { "type": "boolean", "default": true },
+    "runOnType":  { "type": "boolean", "default": true },
+    "debounceMs": { "type": "number",  "default": 400 },
+    "maxFileSize":{ "type": "number",  "default": 1000000 },
+    "rules": {
+      "type": "object",
+      "additionalProperties": { "enum": ["off", "info", "warning", "error"] }
+    },
+    "exclude": { "type": "array", "items": { "type": "string" } },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "parallelAnalysis": { "type": "boolean" },
+        "maxWorkers":       { "type": "number"  },
+        "cacheSize":        { "type": "number"  }
+      }
+    },
+    "anyTypeThreshold":    { "type": "number",  "default": 5 },
+    "allowConsoleInCli":   { "type": "boolean", "default": true }
+  }
+}

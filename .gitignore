@@ -1,0 +1,46 @@
+# Compiled output
+out/
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# VSCode extension packaging
+*.vsix
+.vscode-test/
+
+# Environment & secrets
+.env
+.env.*
+*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Editor directories
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Package manager locks (keep package-lock.json but ignore yarn.lock if not used)
+yarn.lock
+pnpm-lock.yaml
