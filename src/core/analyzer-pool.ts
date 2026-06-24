@@ -34,7 +34,7 @@ export class AnalyzerPool {
   private fallbackInline = false;
 
   constructor(private size: number, workerScript?: string) {
-    this.workerPath = workerScript ?? path.join(__dirname, '..', 'workers', 'analysis-worker.js');
+    this.workerPath = workerScript ?? path.join(__dirname, 'workers', 'analysis-worker.js');
     this.spawn();
   }
 
