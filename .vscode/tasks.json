@@ -2,15 +2,20 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "type": "npm",
-      "script": "compile",
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "presentation": {
-        "reveal": "silent"
-      },
+      "label": "build-core",
+      "type": "shell",
+      "command": "npm run build:core",
+      "group": "build",
+      "presentation": { "reveal": "silent" },
+      "problemMatcher": "$tsc"
+    },
+    {
+      "label": "build-vscode",
+      "type": "shell",
+      "command": "npm run build:vscode",
+      "group": { "kind": "build", "isDefault": true },
+      "dependsOn": ["build-core"],
+      "presentation": { "reveal": "silent" },
       "problemMatcher": "$tsc"
     }
   ]

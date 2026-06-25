@@ -1,0 +1,26 @@
+{
+  "name": "@ied/core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "grammars"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "watch": "tsc -b --watch",
+    "build:test": "tsc -p tsconfig.test.json",
+    "test": "npm run build:test && node dist-test/test/run.js",
+    "vendor:grammars": "node scripts/vendor-grammars.js"
+  },
+  "dependencies": {
+    "web-tree-sitter": "^0.22.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tree-sitter-wasms": "^0.1.13",
+    "typescript": "^5.4.0"
+  }
+}

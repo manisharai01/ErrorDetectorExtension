@@ -1,0 +1,13 @@
+{
+  "//": "Editor-only config so the TS language server owns the test files (the build uses ../tsconfig.test.json). noEmit — never part of any build.",
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "rootDir": "..",
+    "types": ["node"]
+  },
+  "include": ["./**/*", "../src/**/*"]
+}

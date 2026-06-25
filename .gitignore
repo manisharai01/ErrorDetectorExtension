@@ -2,6 +2,11 @@
 out/
 dist/
 build/
+packages/*/out/
+
+# IED runtime artifacts
+.ied-cache/
+.ied-baseline.json
 
 # Dependencies
 node_modules/
@@ -44,3 +49,8 @@ coverage/
 # Package manager locks (keep package-lock.json but ignore yarn.lock if not used)
 yarn.lock
 pnpm-lock.yaml
+
+# Monorepo package outputs and local installs
+packages/*/dist/
+packages/*/dist-test/
+packages/*/node_modules/
