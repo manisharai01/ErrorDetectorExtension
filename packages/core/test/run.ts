@@ -20,6 +20,10 @@ import './python.test';
 import './go.test';
 import './data-flow.test';
 import './project-graph.test';
+import './policy.test';
+import './rust.test';
+import './java.test';
+import './kotlin.test';
 
 async function main(): Promise<void> {
   const cases = drain();

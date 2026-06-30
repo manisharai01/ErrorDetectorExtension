@@ -72,6 +72,9 @@ function extFor(language: Language): string {
     case 'vue': return 'vue';
     case 'python': return 'py';
     case 'go': return 'go';
+    case 'rust': return 'rs';
+    case 'java': return 'java';
+    case 'kotlin': return 'kt';
   }
 }
 

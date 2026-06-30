@@ -12,6 +12,7 @@ import {
   type RuleContext,
   type TSNode
 } from '../types';
+import { profileFor } from '../../engine/grammar-profile';
 
 const MARKER = /\b(TODO|FIXME|HACK|XXX)\b/;
 /** An issue reference: `#123` or a ticket id like `ABC-123`. */
@@ -22,7 +23,7 @@ export const todoWithoutIssueRule: Rule = {
   name: 'todo-without-issue',
   category: 'quality',
   severity: Severity.Info,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go'],
+  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin'],
   description: 'TODO/FIXME comment without an issue tracker reference.',
   docs: [
     '# todo-without-issue (IED-Q005)',
@@ -37,8 +38,9 @@ export const todoWithoutIssueRule: Rule = {
   ].join('\n'),
 
   run(ctx: RuleContext): void {
+    const commentNodes = new Set(profileFor(ctx.language).commentNodes);
     const walk = (node: TSNode): void => {
-      if (node.type === 'comment') {
+      if (commentNodes.has(node.type)) {
         const text = node.text;
         if (MARKER.test(text) && !ISSUE_REF.test(text)) {
           if (!ctx.isSuppressed(node.startPosition.row, 'IED-Q005')) {

@@ -21,7 +21,17 @@ export type QueryMatch = Parser.QueryMatch;
 export type Point = Parser.Point;
 
 /** Languages IED can analyze. `"*"` in a rule's `languages` means "all". */
-export type Language = 'javascript' | 'typescript' | 'jsx' | 'tsx' | 'vue' | 'python' | 'go';
+export type Language =
+  | 'javascript'
+  | 'typescript'
+  | 'jsx'
+  | 'tsx'
+  | 'vue'
+  | 'python'
+  | 'go'
+  | 'rust'
+  | 'java'
+  | 'kotlin';
 
 export enum Severity {
   Error = 'error',
@@ -156,7 +166,10 @@ export const ALL_LANGUAGES: Language[] = [
   'tsx',
   'vue',
   'python',
-  'go'
+  'go',
+  'rust',
+  'java',
+  'kotlin'
 ];
 
 /** True if `rule` applies to `language`. */

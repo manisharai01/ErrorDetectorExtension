@@ -36,6 +36,7 @@ import { magicNumbersRule } from './code-smells/magic-numbers';
 import { todoWithoutIssueRule } from './code-smells/todo-without-issue';
 import { unusedParametersRule } from './code-smells/unused-parameters';
 import { duplicateCodeRule } from './code-smells/duplicate-code';
+import { suppressionWithoutReasonRule } from './code-smells/suppression-without-reason';
 
 // Framework-specific.
 import { reactRules } from './framework-specific/react';
@@ -56,6 +57,15 @@ import { pythonRules } from './python/index';
 
 // Go pack.
 import { goRules } from './go/index';
+
+// Rust pack.
+import { rustRules } from './rust/index';
+
+// Java pack.
+import { javaRules } from './java/index';
+
+// Kotlin pack.
+import { kotlinRules } from './kotlin/index';
 
 /** Every built-in rule, in no particular order (the registry sorts on read). */
 export const BUILTIN_RULES: Rule[] = [
@@ -87,6 +97,7 @@ export const BUILTIN_RULES: Rule[] = [
   todoWithoutIssueRule,
   unusedParametersRule,
   duplicateCodeRule,
+  suppressionWithoutReasonRule,
 
   // Framework-specific.
   ...reactRules,
@@ -106,7 +117,16 @@ export const BUILTIN_RULES: Rule[] = [
   ...pythonRules,
 
   // Go pack.
-  ...goRules
+  ...goRules,
+
+  // Rust pack.
+  ...rustRules,
+
+  // Java pack.
+  ...javaRules,
+
+  // Kotlin pack.
+  ...kotlinRules
 ];
 
 let registered = false;

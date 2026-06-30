@@ -12,7 +12,11 @@ export const SOURCE_EXTS = new Set([
   '.vue',
   '.py',
   '.pyi',
-  '.go'
+  '.go',
+  '.rs',
+  '.java',
+  '.kt',
+  '.kts'
 ]);
 
 /**

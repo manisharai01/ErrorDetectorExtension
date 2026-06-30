@@ -14,6 +14,7 @@ import {
   type RuleContext,
   type TSNode
 } from '../types';
+import { profileFor } from '../../engine/grammar-profile';
 
 const MIN_RUN = 3;
 
@@ -39,7 +40,7 @@ export const commentedCodeRule: Rule = {
   name: 'commented-code',
   category: 'quality',
   severity: Severity.Info,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go'],
+  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin'],
   description: 'A block of consecutive commented-out lines that resemble code.',
   docs: [
     '# commented-code (IED-Q002)',
@@ -58,9 +59,10 @@ export const commentedCodeRule: Rule = {
 
   run(ctx: RuleContext): void {
     // Collect all comment nodes in document order.
+    const commentNodes = new Set(profileFor(ctx.language).commentNodes);
     const comments: TSNode[] = [];
     const walk = (node: TSNode): void => {
-      if (node.type === 'comment') comments.push(node);
+      if (commentNodes.has(node.type)) comments.push(node);
       for (let i = 0; i < node.childCount; i++) {
         const child = node.child(i);
         if (child) walk(child);

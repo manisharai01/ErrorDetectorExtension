@@ -28,6 +28,9 @@ const items = [
   ['tree-sitter-wasms/out/tree-sitter-tsx.wasm', 'tree-sitter-tsx.wasm'],
   ['tree-sitter-wasms/out/tree-sitter-python.wasm', 'tree-sitter-python.wasm'],
   ['tree-sitter-wasms/out/tree-sitter-go.wasm', 'tree-sitter-go.wasm'],
+  ['tree-sitter-wasms/out/tree-sitter-rust.wasm', 'tree-sitter-rust.wasm'],
+  ['tree-sitter-wasms/out/tree-sitter-java.wasm', 'tree-sitter-java.wasm'],
+  ['tree-sitter-wasms/out/tree-sitter-kotlin.wasm', 'tree-sitter-kotlin.wasm'],
   ['web-tree-sitter/tree-sitter.wasm', 'tree-sitter.wasm']
 ];
 

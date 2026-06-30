@@ -47,6 +47,28 @@ export type { GrammarProfile } from './engine/grammar-profile';
 export { findUnusedExports } from './engine/project-graph';
 export type { UnusedExport, ProjectFile } from './engine/project-graph';
 
+// ── Scoring ───────────────────────────────────────────────────────────────────
+export { scoreFindings } from './engine/scoring';
+export type { FindingCounts } from './engine/scoring';
+
+// ── Policy engine (governance) ────────────────────────────────────────────────
+export {
+  resolvePolicy,
+  repoConfigAsLayer,
+  applyPolicy,
+  evaluateThresholds
+} from './config/policy';
+export type {
+  Policy,
+  PolicyRuleSetting,
+  PolicyThresholds,
+  PolicyViolation,
+  PolicyLayer,
+  ResolvedPolicy,
+  GateInput,
+  GateResult
+} from './config/policy';
+
 // ── Analyzer ─────────────────────────────────────────────────────────────────
 export {
   Analyzer,

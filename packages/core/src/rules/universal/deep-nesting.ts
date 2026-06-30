@@ -23,7 +23,7 @@ export const deepNestingRule: Rule = {
   name: 'deep-nesting',
   category: 'quality',
   severity: Severity.Info,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go'],
+  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin'],
   description: 'Control-flow nesting deeper than the configured maximum.',
   docs: [
     '# deep-nesting (IED-Q004)',

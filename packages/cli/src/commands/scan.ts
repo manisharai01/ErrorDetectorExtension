@@ -21,6 +21,7 @@ import {
 import type { Diagnostic, ResolvedConfig } from '@ied/core';
 import { printResults, printSummary } from '../output/terminal';
 import { collectFiles } from './collect';
+import { buildReportPayload, sendReport } from '../report';
 
 const WORKER_THRESHOLD = 8;
 
@@ -30,6 +31,8 @@ interface ScanOptions {
   config?: string;
   cache: boolean;
   baseline?: string | boolean;
+  reportTo?: string;
+  apiKey?: string;
 }
 
 export function scanCommand(): Command {
@@ -42,6 +45,8 @@ export function scanCommand(): Command {
     .option('--config <path>', 'path to config file')
     .option('--no-cache', 'disable the disk cache')
     .option('--baseline [file]', 'filter findings against a baseline file')
+    .option('--report-to <url>', 'POST SARIF results + repo metadata to a dashboard ingest endpoint')
+    .option('--api-key <key>', 'API key (Bearer) for --report-to')
     .action(async (paths: string[], opts: ScanOptions) => {
       registerAllRules();
 
@@ -117,6 +122,22 @@ export function scanCommand(): Command {
 
       const elapsed = Date.now() - start;
       const summary = summarize(all);
+
+      // Best-effort: ship results to a dashboard. Never fails the scan.
+      if (opts.reportTo) {
+        try {
+          await sendReport(
+            opts.reportTo,
+            opts.apiKey,
+            buildReportPayload(all, rootDir, new Date().toISOString())
+          );
+          process.stderr.write(`Reported ${all.length} findings to ${opts.reportTo}\n`);
+        } catch (err) {
+          process.stderr.write(
+            `Warning: --report-to failed: ${err instanceof Error ? err.message : String(err)}\n`
+          );
+        }
+      }
 
       let payload: string | null = null;
       switch (opts.format) {

@@ -54,3 +54,10 @@ pnpm-lock.yaml
 packages/*/dist/
 packages/*/dist-test/
 packages/*/node_modules/
+
+# Dashboard (Next.js + SQLite) build + data artifacts
+packages/*/.next/
+*.db
+*.db-shm
+*.db-wal
+.ied-policy.json

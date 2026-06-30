@@ -77,7 +77,7 @@ export const cognitiveComplexityRule: Rule = {
   name: 'cognitive-complexity',
   category: 'quality',
   severity: Severity.Info,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go'],
+  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin'],
   description: 'Function with high cognitive complexity (nested control flow, boolean chains).',
   docs: [
     '# cognitive-complexity (IED-H001)',

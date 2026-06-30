@@ -29,6 +29,8 @@ export interface GrammarProfile {
   logicalOperators: string[];
   /** Function-definition node types (complexity is scored per function). */
   functionNodes: string[];
+  /** Comment node types (JS/Py/Go use `comment`; Rust/Java/Kotlin differ). */
+  commentNodes: string[];
 }
 
 const JS: GrammarProfile = {
@@ -62,7 +64,8 @@ const JS: GrammarProfile = {
     'method_definition',
     'generator_function',
     'generator_function_declaration'
-  ]
+  ],
+  commentNodes: ['comment']
 };
 
 const PYTHON: GrammarProfile = {
@@ -79,7 +82,8 @@ const PYTHON: GrammarProfile = {
   ],
   booleanOpNodes: ['boolean_operator'],
   logicalOperators: [],
-  functionNodes: ['function_definition']
+  functionNodes: ['function_definition'],
+  commentNodes: ['comment']
 };
 
 const GO: GrammarProfile = {
@@ -104,7 +108,78 @@ const GO: GrammarProfile = {
   ],
   booleanOpNodes: [],
   logicalOperators: ['&&', '||'],
-  functionNodes: ['function_declaration', 'method_declaration']
+  functionNodes: ['function_declaration', 'method_declaration'],
+  commentNodes: ['comment']
+};
+
+const RUST: GrammarProfile = {
+  stringNodes: ['string_literal', 'raw_string_literal'],
+  numberNodes: ['integer_literal', 'float_literal'],
+  nestingNodes: ['if_expression', 'for_expression', 'while_expression', 'loop_expression', 'match_expression'],
+  complexityNodes: [
+    'if_expression',
+    'for_expression',
+    'while_expression',
+    'loop_expression',
+    'match_expression'
+  ],
+  booleanOpNodes: [],
+  logicalOperators: ['&&', '||'],
+  functionNodes: ['function_item', 'closure_expression'],
+  commentNodes: ['line_comment', 'block_comment']
+};
+
+const JAVA: GrammarProfile = {
+  stringNodes: ['string_literal'],
+  numberNodes: [
+    'decimal_integer_literal',
+    'hex_integer_literal',
+    'octal_integer_literal',
+    'binary_integer_literal',
+    'decimal_floating_point_literal',
+    'hex_floating_point_literal'
+  ],
+  nestingNodes: [
+    'if_statement',
+    'for_statement',
+    'enhanced_for_statement',
+    'while_statement',
+    'do_statement',
+    'switch_expression',
+    'try_statement'
+  ],
+  complexityNodes: [
+    'if_statement',
+    'for_statement',
+    'enhanced_for_statement',
+    'while_statement',
+    'do_statement',
+    'catch_clause',
+    'switch_expression',
+    'ternary_expression'
+  ],
+  booleanOpNodes: [],
+  logicalOperators: ['&&', '||'],
+  functionNodes: ['method_declaration', 'constructor_declaration', 'lambda_expression'],
+  commentNodes: ['line_comment', 'block_comment']
+};
+
+const KOTLIN: GrammarProfile = {
+  stringNodes: ['string_literal'],
+  numberNodes: ['integer_literal', 'real_literal', 'hex_literal', 'bin_literal', 'long_literal'],
+  nestingNodes: ['if_expression', 'for_statement', 'while_statement', 'do_while_statement', 'when_expression', 'try_expression'],
+  complexityNodes: [
+    'if_expression',
+    'for_statement',
+    'while_statement',
+    'do_while_statement',
+    'when_entry',
+    'catch_block'
+  ],
+  booleanOpNodes: ['conjunction_expression', 'disjunction_expression'],
+  logicalOperators: [],
+  functionNodes: ['function_declaration', 'lambda_literal', 'anonymous_function'],
+  commentNodes: ['line_comment', 'multiline_comment']
 };
 
 export const GRAMMAR_PROFILES: Record<Language, GrammarProfile> = {
@@ -114,7 +189,10 @@ export const GRAMMAR_PROFILES: Record<Language, GrammarProfile> = {
   tsx: JS,
   vue: JS,
   python: PYTHON,
-  go: GO
+  go: GO,
+  rust: RUST,
+  java: JAVA,
+  kotlin: KOTLIN
 };
 
 export function profileFor(language: Language): GrammarProfile {
