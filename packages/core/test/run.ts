@@ -18,6 +18,8 @@ import './framework.test';
 import './types-perf.test';
 import './python.test';
 import './go.test';
+import './data-flow.test';
+import './project-graph.test';
 
 async function main(): Promise<void> {
   const cases = drain();

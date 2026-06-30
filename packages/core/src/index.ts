@@ -43,6 +43,10 @@ export type { ParseResult, GrammarName } from './engine/parser';
 export { profileFor, GRAMMAR_PROFILES } from './engine/grammar-profile';
 export type { GrammarProfile } from './engine/grammar-profile';
 
+// ── Cross-file project analysis ───────────────────────────────────────────────
+export { findUnusedExports } from './engine/project-graph';
+export type { UnusedExport, ProjectFile } from './engine/project-graph';
+
 // ── Analyzer ─────────────────────────────────────────────────────────────────
 export {
   Analyzer,

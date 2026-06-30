@@ -16,8 +16,9 @@ export interface Suppressions {
   blocks: Array<{ rule: string; startRow: number; endRow: number }>;
 }
 
-const NEXT_LINE = /\/\/\s*ied-disable-next-line\s*([A-Za-z0-9-]+)?/;
-const SAME_LINE = /\/\/\s*ied-disable-line\s*([A-Za-z0-9-]+)?/;
+// Accept both `//` (JS/TS/Go) and `#` (Python) line-comment markers.
+const NEXT_LINE = /(?:\/\/|#)\s*ied-disable-next-line\s*([A-Za-z0-9-]+)?/;
+const SAME_LINE = /(?:\/\/|#)\s*ied-disable-line\s*([A-Za-z0-9-]+)?/;
 const BLOCK_DISABLE = /ied-disable\b\s*([A-Za-z0-9-]+)?/;
 const BLOCK_ENABLE = /ied-enable\b\s*([A-Za-z0-9-]+)?/;
 
@@ -68,7 +69,7 @@ export function parseSuppressions(source: string): Suppressions {
 
 function isComment(line: string): boolean {
   const t = line.trim();
-  return t.startsWith('//') || t.startsWith('/*') || t.startsWith('*');
+  return t.startsWith('//') || t.startsWith('/*') || t.startsWith('*') || t.startsWith('#');
 }
 
 export function isSuppressed(s: Suppressions, row: number, ruleId: string): boolean {

@@ -2,7 +2,18 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { ResolvedConfig } from '@ied/core';
 
-export const SOURCE_EXTS = new Set(['.js', '.jsx', '.ts', '.tsx', '.vue']);
+export const SOURCE_EXTS = new Set([
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.ts',
+  '.tsx',
+  '.vue',
+  '.py',
+  '.pyi',
+  '.go'
+]);
 
 /**
  * Walk the given input paths and return the list of source files to analyze,

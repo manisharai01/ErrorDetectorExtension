@@ -20,13 +20,32 @@ import { HoverProvider } from './providers/hover-provider';
 import { IssueTreeProvider } from './views/tree-provider';
 import { StatusBar } from './views/status-bar';
 import { DashboardPanel } from './views/webview-panel';
+import { startLspClient, stopLspClient } from './lsp-client';
 
-const SUPPORTED_LANGS = ['javascript', 'javascriptreact', 'typescript', 'typescriptreact', 'vue'];
+const SUPPORTED_LANGS = [
+  'javascript',
+  'javascriptreact',
+  'typescript',
+  'typescriptreact',
+  'vue',
+  'python',
+  'go'
+];
 
 let activeAnalyzer: Analyzer | undefined;
+let lspMode = false;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   registerAllRules();
+
+  // Optional LSP-client mode (parity testing). Default is in-process for lower
+  // latency. When enabled, the @ied/lsp server owns diagnostics and we skip the
+  // in-process wiring entirely.
+  if (vscode.workspace.getConfiguration('invisibleErrors').get<boolean>('useLsp', false)) {
+    lspMode = true;
+    startLspClient(context);
+    return;
+  }
 
   let config: ExtensionConfig = loadConfig();
   let analyzer = new Analyzer(config);
@@ -114,7 +133,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         async (progress, progressToken) => {
           progressToken.onCancellationRequested(() => cancelToken?.cancel());
           const files = await vscode.workspace.findFiles(
-            '**/*.{js,jsx,ts,tsx,vue}',
+            '**/*.{js,jsx,ts,tsx,vue,py,go}',
             '{**/node_modules/**,**/dist/**,**/out/**,**/build/**}'
           );
           let i = 0;
@@ -158,6 +177,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 }
 
 export async function deactivate(): Promise<void> {
+  if (lspMode) {
+    await stopLspClient();
+    return;
+  }
   activeAnalyzer?.dispose();
   activeAnalyzer = undefined;
 }

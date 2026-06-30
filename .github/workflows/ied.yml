@@ -1,0 +1,28 @@
+# Invisible Errors Detector — GitHub Actions template.
+# Drop this into your repo's .github/workflows/. Adjust the `src/` path to your
+# source directory. Uploads SARIF so findings appear in the GitHub Security tab.
+name: Invisible Errors Detector
+on: [push, pull_request]
+jobs:
+  ied:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # required to upload SARIF
+      pull-requests: write     # required for the PR comment step (optional)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install -g @ied/cli
+      - run: ied scan src/ --format sarif --output ied-results.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ied-results.sarif
+        if: always()
+      # Optional: comment newly-introduced findings on the PR.
+      - if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ied ci-comment src/ --format github

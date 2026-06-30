@@ -27,6 +27,8 @@ import { raceConditionRule } from './logic/race-condition';
 import { infiniteLoopRule } from './logic/infinite-loop';
 import { recursionBaseCaseRule } from './logic/recursion-base-case';
 import { typeGuardContradictionRule } from './logic/type-guard-contradiction';
+import { constantConditionRule } from './logic/constant-condition';
+import { unreachableCodeRule } from './logic/unreachable-code';
 
 // Code smells / quality.
 import { commentedCodeRule } from './code-smells/commented-code';
@@ -47,6 +49,7 @@ import { nestedLoopRule } from './performance/nested-loop';
 
 // Heuristics.
 import { cognitiveComplexityRule } from './heuristics/complexity';
+import { overwrittenBeforeUseRule } from './heuristics/overwritten-before-use';
 
 // Python pack.
 import { pythonRules } from './python/index';
@@ -75,6 +78,8 @@ export const BUILTIN_RULES: Rule[] = [
   infiniteLoopRule,
   recursionBaseCaseRule,
   typeGuardContradictionRule,
+  constantConditionRule,
+  unreachableCodeRule,
 
   // Code smells / quality.
   commentedCodeRule,
@@ -95,6 +100,7 @@ export const BUILTIN_RULES: Rule[] = [
 
   // Heuristics.
   cognitiveComplexityRule,
+  overwrittenBeforeUseRule,
 
   // Python pack.
   ...pythonRules,

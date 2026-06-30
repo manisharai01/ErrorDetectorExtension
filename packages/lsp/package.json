@@ -1,18 +1,18 @@
 {
-  "name": "@ied/cli",
+  "name": "@ied/lsp",
   "version": "0.1.0",
   "private": true,
-  "bin": { "ied": "bin/ied.js" },
-  "main": "./dist/index.js",
+  "main": "./dist/server.js",
+  "bin": { "ied-lsp": "bin/ied-lsp.js" },
   "scripts": {
     "build": "tsc -b",
     "watch": "tsc -b --watch",
-    "test": "node test/formats.test.mjs",
-    "test:ci": "node test/ci.test.mjs"
+    "test": "node test/integration.test.mjs"
   },
   "dependencies": {
     "@ied/core": "*",
-    "commander": "^12.0.0"
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.11"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

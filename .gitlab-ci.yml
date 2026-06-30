@@ -1,0 +1,12 @@
+# Invisible Errors Detector — GitLab CI template.
+# Adjust the `src/` path to your source directory. Publishes a JUnit report so
+# findings show up in the GitLab merge-request widget.
+ied:
+  image: node:20
+  script:
+    - npm install -g @ied/cli
+    - ied scan src/ --format junit --output ied-results.xml
+  artifacts:
+    when: always
+    reports:
+      junit: ied-results.xml
