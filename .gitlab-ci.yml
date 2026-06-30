@@ -1,11 +1,14 @@
-# Invisible Errors Detector — GitLab CI template.
-# Adjust the `src/` path to your source directory. Publishes a JUnit report so
-# findings show up in the GitLab merge-request widget.
+# Invisible Errors Detector — GitLab CI for THIS monorepo (builds the CLI from source).
+# @ied/cli is a private/unpublished workspace package, so `npm install -g @ied/cli`
+# does NOT work — build it in-repo and run the local bin. Once published, an
+# external repo can use `npm install -g @ied/cli` then `ied scan ...`.
 ied:
   image: node:20
   script:
-    - npm install -g @ied/cli
-    - ied scan src/ --format junit --output ied-results.xml
+    - npm ci
+    - npx tsc -b packages/core packages/cli
+    # `|| true` so findings don't fail the job before the JUnit report is written.
+    - node packages/cli/bin/ied.js scan packages/core/src packages/cli/src packages/lsp/src --format junit --output ied-results.xml || true
   artifacts:
     when: always
     reports:

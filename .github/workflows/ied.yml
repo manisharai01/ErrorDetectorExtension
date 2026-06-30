@@ -1,6 +1,13 @@
-# Invisible Errors Detector — GitHub Actions template.
-# Drop this into your repo's .github/workflows/. Adjust the `src/` path to your
-# source directory. Uploads SARIF so findings appear in the GitHub Security tab.
+# Invisible Errors Detector — CI for THIS monorepo (builds the CLI from source).
+#
+# IMPORTANT: @ied/cli is a PRIVATE workspace package (not published to npm), so
+# `npm install -g @ied/cli` does NOT work here — it 404s, leaving no `ied`
+# binary and no SARIF file ("Path does not exist: ied-results.sarif"). This
+# workflow builds the CLI in-repo and runs it via node instead.
+#
+# For an EXTERNAL repo once @ied/cli is published, replace the build+scan steps with:
+#     - run: npm install -g @ied/cli
+#     - run: ied scan src/ --format sarif --output ied-results.sarif || true
 name: Invisible Errors Detector
 on: [push, pull_request]
 jobs:
@@ -8,21 +15,27 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write   # required to upload SARIF
-      pull-requests: write     # required for the PR comment step (optional)
+      security-events: write   # upload SARIF to the Security tab
+      pull-requests: write      # PR comment step (optional)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install -g @ied/cli
-      - run: ied scan src/ --format sarif --output ied-results.sarif
+      - run: npm ci
+      # Build only what scanning needs (core + cli) from source.
+      - run: npx tsc -b packages/core packages/cli
+      # `|| true` so findings (exit 1) don't fail the job before SARIF uploads.
+      # Remove `|| true` to make CI fail on errors. Narrow the path as you like.
+      - name: Scan
+        run: node packages/cli/bin/ied.js scan packages/core/src packages/cli/src packages/lsp/src --format sarif --output ied-results.sarif || true
       - uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
           sarif_file: ied-results.sarif
-        if: always()
       # Optional: comment newly-introduced findings on the PR.
-      - if: github.event_name == 'pull_request'
+      - name: PR comment
+        if: github.event_name == 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ied ci-comment src/ --format github
+        run: node packages/cli/bin/ied.js ci-comment packages/core/src --format github
