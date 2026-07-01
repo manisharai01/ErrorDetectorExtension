@@ -26,7 +26,10 @@ export const SOURCE_EXTS = new Set([
   '.hpp',
   '.hh',
   '.hxx',
-  '.php'
+  '.php',
+  '.cs',
+  '.rb',
+  '.dart'
 ]);
 
 /**
