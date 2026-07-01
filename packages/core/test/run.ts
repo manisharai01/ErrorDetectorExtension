@@ -28,6 +28,7 @@ import './swift.test';
 import './c-family.test';
 import './php.test';
 import './plugin-loader.test';
+import './hotspots.test';
 
 async function main(): Promise<void> {
   const cases = drain();

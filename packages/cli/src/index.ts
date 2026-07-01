@@ -7,6 +7,7 @@ import { baselineCommand } from './commands/baseline';
 import { ciCommentCommand } from './commands/ci-comment';
 import { unusedExportsCommand } from './commands/unused-exports';
 import { aiCommand } from './commands/ai';
+import { hotspotsCommand } from './commands/hotspots';
 
 const program = new Command();
 program
@@ -20,4 +21,5 @@ program.addCommand(baselineCommand());
 program.addCommand(ciCommentCommand());
 program.addCommand(unusedExportsCommand());
 program.addCommand(aiCommand());
+program.addCommand(hotspotsCommand());
 program.parseAsync(process.argv).catch((err) => { console.error(err); process.exit(2); });

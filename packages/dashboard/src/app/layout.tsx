@@ -10,6 +10,7 @@ export const metadata = {
 const NAV: [string, string][] = [
   ['/', 'Overview'],
   ['/repos', 'Repos'],
+  ['/risk', 'Risk Map'],
   ['/rules', 'Rules'],
   ['/teams', 'Teams'],
   ['/policies', 'Policies'],

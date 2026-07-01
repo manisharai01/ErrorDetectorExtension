@@ -6,7 +6,7 @@
 import { execSync } from 'child_process';
 import * as path from 'path';
 import { toSarif } from '@ied/core';
-import type { Diagnostic } from '@ied/core';
+import type { Diagnostic, Hotspot } from '@ied/core';
 
 export interface ReportMetadata {
   repo: string;
@@ -54,6 +54,33 @@ export function buildReportPayload(
   timestamp: string
 ): ReportPayload {
   return { metadata: gatherMetadata(rootDir, timestamp), sarif: toSarif(diagnostics) };
+}
+
+export interface HotspotPayload {
+  metadata: ReportMetadata;
+  hotspots: Hotspot[];
+}
+
+export function buildHotspotPayload(
+  hotspots: Hotspot[],
+  rootDir: string,
+  timestamp: string
+): HotspotPayload {
+  return { metadata: gatherMetadata(rootDir, timestamp), hotspots };
+}
+
+/** POST computed hotspots to a dashboard's hotspot-ingest endpoint. */
+export async function sendHotspots(
+  url: string,
+  apiKey: string | undefined,
+  payload: HotspotPayload,
+  fetchImpl?: FetchLike
+): Promise<void> {
+  const f = fetchImpl ?? (globalThis.fetch as unknown as FetchLike);
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  const res = await f(url, { method: 'POST', headers, body: JSON.stringify(payload) });
+  if (!res.ok) throw new Error(`hotspots endpoint returned HTTP ${res.status}`);
 }
 
 export async function sendReport(

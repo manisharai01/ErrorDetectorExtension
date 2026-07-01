@@ -35,6 +35,9 @@ const items = [
   ['tree-sitter-wasms/out/tree-sitter-c.wasm', 'tree-sitter-c.wasm'],
   ['tree-sitter-wasms/out/tree-sitter-cpp.wasm', 'tree-sitter-cpp.wasm'],
   ['tree-sitter-wasms/out/tree-sitter-php.wasm', 'tree-sitter-php.wasm'],
+  ['tree-sitter-wasms/out/tree-sitter-c_sharp.wasm', 'tree-sitter-c_sharp.wasm'],
+  ['tree-sitter-wasms/out/tree-sitter-ruby.wasm', 'tree-sitter-ruby.wasm'],
+  ['tree-sitter-wasms/out/tree-sitter-dart.wasm', 'tree-sitter-dart.wasm'],
   ['web-tree-sitter/tree-sitter.wasm', 'tree-sitter.wasm']
 ];
 

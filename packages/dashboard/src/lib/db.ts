@@ -45,6 +45,20 @@ export interface RepoSummary {
   lastScan: string;
 }
 
+/** One predicted hotspot file (from `ied hotspots --report-to`). */
+export interface HotspotRow {
+  file: string;
+  churn: number;
+  findingWeight: number;
+  risk: number;
+}
+
+export interface RepoHotspots {
+  repo: string;
+  ts: string;
+  hotspots: HotspotRow[];
+}
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS scans (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,8 +90,18 @@ CREATE TABLE IF NOT EXISTS false_positives (
   rule_id TEXT,
   marked_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS hotspots (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  repo TEXT NOT NULL,
+  ts TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  churn INTEGER NOT NULL,
+  finding_weight INTEGER NOT NULL,
+  risk INTEGER NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_scans_repo_ts ON scans(repo, ts);
 CREATE INDEX IF NOT EXISTS idx_findings_scan ON findings(scan_id);
+CREATE INDEX IF NOT EXISTS idx_hotspots_repo ON hotspots(repo, risk);
 `;
 
 export class DashboardStore {
@@ -261,6 +285,51 @@ export class DashboardStore {
         return { ruleId: c.rule_id, count: c.count, falsePositives: fp, fpRate: c.count ? fp / c.count : 0 };
       })
       .sort((a, b) => b.count - a.count);
+  }
+
+  /**
+   * Replace the stored hotspot ranking for a repo (latest-wins). Old rows for
+   * the repo are cleared so the Risk Map always reflects the most recent run.
+   */
+  ingestHotspots(repo: string, ts: string, rows: HotspotRow[]): { count: number } {
+    const tx = this.db.transaction(() => {
+      this.db.prepare(`DELETE FROM hotspots WHERE repo = ?`).run(repo);
+      const insert = this.db.prepare(
+        `INSERT INTO hotspots (repo, ts, file_path, churn, finding_weight, risk)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      );
+      for (const h of rows) {
+        insert.run(repo, ts, h.file, h.churn, h.findingWeight, h.risk);
+      }
+    });
+    tx();
+    return { count: rows.length };
+  }
+
+  /** Latest hotspot ranking for one repo, highest risk first. */
+  repoHotspots(repo: string, limit = 100): HotspotRow[] {
+    const rows = this.db
+      .prepare(
+        `SELECT file_path, churn, finding_weight, risk FROM hotspots
+         WHERE repo = ? ORDER BY risk DESC, churn DESC LIMIT ?`
+      )
+      .all(repo, limit) as any[];
+    return rows.map((r) => ({
+      file: r.file_path,
+      churn: r.churn,
+      findingWeight: r.finding_weight,
+      risk: r.risk
+    }));
+  }
+
+  /** Every repo that has a stored hotspot ranking, with its top risk. */
+  reposWithHotspots(): { repo: string; ts: string; count: number; maxRisk: number }[] {
+    return this.db
+      .prepare(
+        `SELECT repo, MAX(ts) AS ts, COUNT(*) AS count, MAX(risk) AS maxRisk
+         FROM hotspots GROUP BY repo ORDER BY maxRisk DESC`
+      )
+      .all() as { repo: string; ts: string; count: number; maxRisk: number }[];
   }
 
   markFalsePositive(fingerprint: string, ruleId: string | undefined, markedAt: string): void {

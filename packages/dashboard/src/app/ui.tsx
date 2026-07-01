@@ -12,6 +12,34 @@ export function SeverityPill({ severity }: { severity: string }) {
   return <span className={`pill ${severity}`}>{severity}</span>;
 }
 
+/** Interpolate a risk value (0..100) to a heat color (green → amber → red). */
+export function riskColor(risk: number): string {
+  const r = Math.max(0, Math.min(100, risk)) / 100;
+  // 0 → green (hue 140), 100 → red (hue 0). Fixed saturation/lightness.
+  const hue = Math.round(140 * (1 - r));
+  return `hsl(${hue}, 70%, 45%)`;
+}
+
+/** A risk chip: the number on its heat color. */
+export function RiskChip({ risk }: { risk: number }) {
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        minWidth: 34,
+        textAlign: 'center',
+        padding: '2px 8px',
+        borderRadius: 6,
+        color: '#fff',
+        fontWeight: 600,
+        background: riskColor(risk)
+      }}
+    >
+      {risk}
+    </span>
+  );
+}
+
 export function Sparkline({
   points,
   width = 200,

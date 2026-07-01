@@ -2,6 +2,7 @@
 // Run: npm run build:lib && node test/db.test.cjs
 const { openStore } = require('../dist/lib/db.js');
 const { ingestPayload, parseSarif } = require('../dist/lib/ingest.js');
+const { ingestHotspotPayload } = require('../dist/lib/ingest-hotspots.js');
 const assert = require('assert');
 
 function sarif(results) {
@@ -96,6 +97,51 @@ test('repoTrend returns chronological scores', () => {
   const trend = store.repoTrend('r');
   assert.equal(trend.length, 2);
   assert.ok(trend[1].score >= trend[0].score, 'score improved after fixing the error');
+});
+
+test('ingestHotspots + repoHotspots round-trips, sorted by risk', () => {
+  const store = openStore(':memory:');
+  ingestHotspotPayload(
+    store,
+    {
+      metadata: { repo: 'acme/api', timestamp: '2026-07-01T00:00:00Z' },
+      hotspots: [
+        { file: 'a.ts', churn: 40, findingWeight: 30, risk: 90 },
+        { file: 'b.ts', churn: 5, findingWeight: 2, risk: 20 },
+        { file: 'c.ts', churn: 20, findingWeight: 10, risk: 55 }
+      ]
+    },
+    'now'
+  );
+  const rows = store.repoHotspots('acme/api');
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows.map((r) => r.file), ['a.ts', 'c.ts', 'b.ts'], 'sorted by risk desc');
+  assert.equal(rows[0].churn, 40);
+  assert.equal(rows[0].findingWeight, 30);
+});
+
+test('ingestHotspots is latest-wins per repo', () => {
+  const store = openStore(':memory:');
+  ingestHotspotPayload(store, { metadata: { repo: 'r', timestamp: 't1' }, hotspots: [{ file: 'old.ts', churn: 9, findingWeight: 9, risk: 99 }] }, 'now');
+  ingestHotspotPayload(store, { metadata: { repo: 'r', timestamp: 't2' }, hotspots: [{ file: 'new.ts', churn: 1, findingWeight: 1, risk: 10 }] }, 'now');
+  const rows = store.repoHotspots('r');
+  assert.equal(rows.length, 1, 'old ranking cleared');
+  assert.equal(rows[0].file, 'new.ts');
+});
+
+test('reposWithHotspots summarizes each repo by max risk', () => {
+  const store = openStore(':memory:');
+  ingestHotspotPayload(store, { metadata: { repo: 'low', timestamp: 't' }, hotspots: [{ file: 'a', churn: 1, findingWeight: 1, risk: 15 }] }, 'now');
+  ingestHotspotPayload(store, { metadata: { repo: 'high', timestamp: 't' }, hotspots: [{ file: 'b', churn: 9, findingWeight: 9, risk: 88 }] }, 'now');
+  const summary = store.reposWithHotspots();
+  assert.equal(summary.length, 2);
+  assert.equal(summary[0].repo, 'high', 'highest max-risk repo first');
+  assert.equal(summary[0].maxRisk, 88);
+});
+
+test('ingestHotspotPayload rejects a payload without repo', () => {
+  const store = openStore(':memory:');
+  assert.throws(() => ingestHotspotPayload(store, { metadata: {}, hotspots: [] }, 'now'), /repo/);
 });
 
 console.log(`\n  ${pass} passed, ${fail} failed\n`);
