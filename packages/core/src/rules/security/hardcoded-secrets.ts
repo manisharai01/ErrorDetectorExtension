@@ -43,7 +43,7 @@ export const hardcodedSecretsRule: Rule = {
   name: 'hardcoded-secrets',
   category: 'security',
   severity: Severity.Error,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin'],
+  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin', 'swift', 'c', 'cpp', 'php'],
   description: 'API keys, tokens, or private keys hardcoded in source.',
   docs: [
     '# hardcoded-secrets (IED-S001)',

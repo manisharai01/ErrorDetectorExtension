@@ -40,7 +40,7 @@ export const commentedCodeRule: Rule = {
   name: 'commented-code',
   category: 'quality',
   severity: Severity.Info,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin'],
+  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin', 'swift', 'c', 'cpp', 'php'],
   description: 'A block of consecutive commented-out lines that resemble code.',
   docs: [
     '# commented-code (IED-Q002)',

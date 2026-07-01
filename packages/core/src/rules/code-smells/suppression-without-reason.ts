@@ -27,7 +27,7 @@ export const suppressionWithoutReasonRule: Rule = {
   name: 'suppression-without-reason',
   category: 'quality',
   severity: Severity.Warning,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin'],
+  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin', 'swift', 'c', 'cpp', 'php'],
   description: 'An inline suppression comment has no reason explaining why.',
   docs: [
     '# suppression-without-reason (IED-Q013)',

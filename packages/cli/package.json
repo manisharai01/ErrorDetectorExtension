@@ -2,15 +2,19 @@
   "name": "@ied/cli",
   "version": "0.1.0",
   "private": true,
-  "bin": { "ied": "bin/ied.js" },
+  "bin": {
+    "ied": "bin/ied.js"
+  },
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc -b",
     "watch": "tsc -b --watch",
     "test": "node test/formats.test.mjs",
-    "test:ci": "node test/ci.test.mjs"
+    "test:ci": "node test/ci.test.mjs",
+    "test:ai": "node test/ai.test.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.107.0",
     "@ied/core": "*",
     "commander": "^12.0.0"
   },

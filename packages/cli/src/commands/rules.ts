@@ -1,15 +1,25 @@
 import { Command } from 'commander';
-import { registerAllRules, registry } from '@ied/core';
+import { registerAllRules, registerPlugins, registry, loadConfig } from '@ied/core';
 import type { Rule } from '@ied/core';
 
 export function rulesCommand(): Command {
   const cmd = new Command('rules');
   cmd
-    .description('List available rules')
+    .description('List available rules (including those loaded from plugins)')
     .option('--category <cat>', 'filter by category')
     .option('--json', 'output as JSON')
     .action((opts: { category?: string; json?: boolean }) => {
       registerAllRules();
+      // Also surface rules contributed by .iedrc "plugins" so users can confirm
+      // their marketplace packages loaded.
+      try {
+        const errors = registerPlugins(loadConfig(process.cwd()));
+        for (const e of errors) {
+          process.stderr.write(`Warning: plugin "${e.spec}" — ${e.message}\n`);
+        }
+      } catch {
+        /* a broken config shouldn't stop `ied rules` from listing built-ins */
+      }
       let rules: Rule[] = registry.all();
       if (opts.category) {
         rules = rules.filter((r) => r.category === opts.category);

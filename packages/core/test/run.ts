@@ -24,6 +24,10 @@ import './policy.test';
 import './rust.test';
 import './java.test';
 import './kotlin.test';
+import './swift.test';
+import './c-family.test';
+import './php.test';
+import './plugin-loader.test';
 
 async function main(): Promise<void> {
   const cases = drain();

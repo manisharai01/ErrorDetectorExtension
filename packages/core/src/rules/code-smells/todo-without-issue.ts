@@ -23,7 +23,7 @@ export const todoWithoutIssueRule: Rule = {
   name: 'todo-without-issue',
   category: 'quality',
   severity: Severity.Info,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin'],
+  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin', 'swift', 'c', 'cpp', 'php'],
   description: 'TODO/FIXME comment without an issue tracker reference.',
   docs: [
     '# todo-without-issue (IED-Q005)',

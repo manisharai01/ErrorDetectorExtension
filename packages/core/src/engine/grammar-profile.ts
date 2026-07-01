@@ -182,6 +182,50 @@ const KOTLIN: GrammarProfile = {
   commentNodes: ['line_comment', 'multiline_comment']
 };
 
+const SWIFT: GrammarProfile = {
+  stringNodes: ['line_string_literal', 'multi_line_string_literal'],
+  numberNodes: ['integer_literal', 'real_literal'],
+  nestingNodes: ['if_statement', 'for_statement', 'while_statement', 'guard_statement', 'switch_statement', 'do_statement'],
+  complexityNodes: ['if_statement', 'for_statement', 'while_statement', 'guard_statement', 'switch_entry', 'catch_block'],
+  booleanOpNodes: ['conjunction_expression', 'disjunction_expression'],
+  logicalOperators: [],
+  functionNodes: ['function_declaration', 'lambda_literal', 'closure_expression'],
+  commentNodes: ['comment', 'multiline_comment']
+};
+
+const C_PROFILE: GrammarProfile = {
+  stringNodes: ['string_literal'],
+  numberNodes: ['number_literal'],
+  nestingNodes: ['if_statement', 'for_statement', 'while_statement', 'do_statement', 'switch_statement'],
+  complexityNodes: ['if_statement', 'for_statement', 'while_statement', 'do_statement', 'case_statement'],
+  booleanOpNodes: [],
+  logicalOperators: ['&&', '||'],
+  functionNodes: ['function_definition'],
+  commentNodes: ['comment']
+};
+
+const CPP: GrammarProfile = {
+  stringNodes: ['string_literal', 'raw_string_literal'],
+  numberNodes: ['number_literal'],
+  nestingNodes: ['if_statement', 'for_statement', 'while_statement', 'do_statement', 'switch_statement', 'try_statement', 'for_range_loop'],
+  complexityNodes: ['if_statement', 'for_statement', 'while_statement', 'do_statement', 'case_statement', 'catch_clause', 'for_range_loop'],
+  booleanOpNodes: [],
+  logicalOperators: ['&&', '||'],
+  functionNodes: ['function_definition', 'lambda_expression'],
+  commentNodes: ['comment']
+};
+
+const PHP_PROFILE: GrammarProfile = {
+  stringNodes: ['string', 'encapsed_string', 'heredoc'],
+  numberNodes: ['integer', 'float'],
+  nestingNodes: ['if_statement', 'for_statement', 'foreach_statement', 'while_statement', 'do_statement', 'switch_statement', 'try_statement'],
+  complexityNodes: ['if_statement', 'else_if_clause', 'for_statement', 'foreach_statement', 'while_statement', 'do_statement', 'catch_clause'],
+  booleanOpNodes: [],
+  logicalOperators: ['&&', '||', 'and', 'or'],
+  functionNodes: ['function_definition', 'method_declaration', 'anonymous_function_creation_expression', 'arrow_function'],
+  commentNodes: ['comment']
+};
+
 export const GRAMMAR_PROFILES: Record<Language, GrammarProfile> = {
   javascript: JS,
   typescript: JS,
@@ -192,7 +236,11 @@ export const GRAMMAR_PROFILES: Record<Language, GrammarProfile> = {
   go: GO,
   rust: RUST,
   java: JAVA,
-  kotlin: KOTLIN
+  kotlin: KOTLIN,
+  swift: SWIFT,
+  c: C_PROFILE,
+  cpp: CPP,
+  php: PHP_PROFILE
 };
 
 export function profileFor(language: Language): GrammarProfile {

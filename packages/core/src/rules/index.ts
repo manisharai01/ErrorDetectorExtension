@@ -67,6 +67,15 @@ import { javaRules } from './java/index';
 // Kotlin pack.
 import { kotlinRules } from './kotlin/index';
 
+// Swift pack.
+import { swiftRules } from './swift/index';
+
+// C/C++ pack.
+import { cFamilyRules } from './c-family/index';
+
+// PHP pack.
+import { phpRules } from './php/index';
+
 /** Every built-in rule, in no particular order (the registry sorts on read). */
 export const BUILTIN_RULES: Rule[] = [
   // Universal.
@@ -126,7 +135,16 @@ export const BUILTIN_RULES: Rule[] = [
   ...javaRules,
 
   // Kotlin pack.
-  ...kotlinRules
+  ...kotlinRules,
+
+  // Swift pack.
+  ...swiftRules,
+
+  // C/C++ pack.
+  ...cFamilyRules,
+
+  // PHP pack.
+  ...phpRules
 ];
 
 let registered = false;

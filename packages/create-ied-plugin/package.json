@@ -1,0 +1,9 @@
+{
+  "name": "create-ied-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Scaffold a new Invisible Errors Detector rule plugin.",
+  "bin": { "create-ied-plugin": "index.js" },
+  "type": "commonjs",
+  "files": ["index.js"]
+}

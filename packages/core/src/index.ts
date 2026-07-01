@@ -35,6 +35,10 @@ export type {
 export { RuleRegistry, registry } from './rules/registry';
 export { BUILTIN_RULES, registerAllRules } from './rules/index';
 
+// ── Plugin loader (the rule marketplace) ──────────────────────────────────────
+export { loadPlugins, registerPlugins } from './engine/plugin-loader';
+export type { PluginError, LoadPluginsResult } from './engine/plugin-loader';
+
 // ── Parser ───────────────────────────────────────────────────────────────────
 export { ParserManager, extractVueScript } from './engine/parser';
 export type { ParseResult, GrammarName } from './engine/parser';
@@ -50,6 +54,14 @@ export type { UnusedExport, ProjectFile } from './engine/project-graph';
 // ── Scoring ───────────────────────────────────────────────────────────────────
 export { scoreFindings } from './engine/scoring';
 export type { FindingCounts } from './engine/scoring';
+
+// ── Predictive bug hotspots (git churn × finding density) ─────────────────────
+export {
+  computeHotspots,
+  findingWeightByFile,
+  SEVERITY_WEIGHT
+} from './engine/hotspots';
+export type { Hotspot, HotspotInput, HotspotOptions } from './engine/hotspots';
 
 // ── Policy engine (governance) ────────────────────────────────────────────────
 export {
@@ -117,7 +129,8 @@ export type {
   IEDConfig,
   ResolvedConfig,
   RuleSetting,
-  ConfigSeverity
+  ConfigSeverity,
+  AiConfig
 } from './config/types';
 
 // ── Reporters ────────────────────────────────────────────────────────────────

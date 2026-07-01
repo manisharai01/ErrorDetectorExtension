@@ -6,6 +6,7 @@ import { initCommand } from './commands/init';
 import { baselineCommand } from './commands/baseline';
 import { ciCommentCommand } from './commands/ci-comment';
 import { unusedExportsCommand } from './commands/unused-exports';
+import { aiCommand } from './commands/ai';
 
 const program = new Command();
 program
@@ -18,4 +19,5 @@ program.addCommand(initCommand());
 program.addCommand(baselineCommand());
 program.addCommand(ciCommentCommand());
 program.addCommand(unusedExportsCommand());
+program.addCommand(aiCommand());
 program.parseAsync(process.argv).catch((err) => { console.error(err); process.exit(2); });

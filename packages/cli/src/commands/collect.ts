@@ -16,7 +16,17 @@ export const SOURCE_EXTS = new Set([
   '.rs',
   '.java',
   '.kt',
-  '.kts'
+  '.kts',
+  '.swift',
+  '.c',
+  '.h',
+  '.cpp',
+  '.cc',
+  '.cxx',
+  '.hpp',
+  '.hh',
+  '.hxx',
+  '.php'
 ]);
 
 /**

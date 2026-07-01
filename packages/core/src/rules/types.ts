@@ -31,7 +31,11 @@ export type Language =
   | 'go'
   | 'rust'
   | 'java'
-  | 'kotlin';
+  | 'kotlin'
+  | 'swift'
+  | 'c'
+  | 'cpp'
+  | 'php';
 
 export enum Severity {
   Error = 'error',
@@ -169,7 +173,11 @@ export const ALL_LANGUAGES: Language[] = [
   'go',
   'rust',
   'java',
-  'kotlin'
+  'kotlin',
+  'swift',
+  'c',
+  'cpp',
+  'php'
 ];
 
 /** True if `rule` applies to `language`. */

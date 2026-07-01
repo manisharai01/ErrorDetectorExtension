@@ -18,11 +18,41 @@ export type RuleSetting =
       options?: Record<string, unknown>;
     };
 
+/**
+ * Optional configuration for the AI-augmented features (explain / generate-rule).
+ *
+ * AI is strictly opt-in and lives entirely outside the analysis engine: the core
+ * scanner never reads these fields, never imports an AI SDK, and never touches
+ * the network. They exist on the config type only so the CLI can read them from
+ * the same `.iedrc.json` the rest of the tool uses.
+ */
+export interface AiConfig {
+  /** Master switch. AI commands also require a resolvable API key regardless. */
+  enabled?: boolean;
+  /**
+   * Anthropic API key. Prefer the `ANTHROPIC_API_KEY` environment variable over
+   * committing a key to `.iedrc.json`.
+   */
+  apiKey?: string;
+  /** Claude model id. Defaults to `claude-opus-4-8` when unset. */
+  model?: string;
+}
+
 export interface IEDConfig {
   /** Optional path(s) to base configs to inherit from. */
   extends?: string | string[];
+  /**
+   * External rule packages to load (the "rule marketplace"). Each entry is
+   * either an npm package name (`"@acme/ied-rules-graphql"`) resolved from the
+   * project's node_modules, or a local path (`"./custom-rules/our-rules.js"`)
+   * resolved relative to the project root. A package default-exports an array
+   * of Rule objects; the engine registers them alongside the built-ins.
+   */
+  plugins?: string[];
   /** Per-rule settings keyed by rule id (e.g. "IED-S001"). */
   rules?: Record<string, RuleSetting>;
+  /** Opt-in AI feature settings (explain / generate-rule). Engine ignores this. */
+  ai?: AiConfig;
   /** Glob patterns of files to include. */
   include?: string[];
   /** Glob patterns to exclude. */
@@ -47,6 +77,10 @@ export interface ResolvedConfig {
   ruleSeverities: Map<string, Severity | null>;
   /** Effective options per rule id (empty object if none). */
   ruleOptions: Map<string, Record<string, unknown>>;
+  /** External rule-package specs to load (npm names or local paths). */
+  plugins: string[];
+  /** Opt-in AI settings, passed through untouched for the CLI to read. */
+  ai: AiConfig;
   include: string[];
   exclude: string[];
   baseline: string | null;

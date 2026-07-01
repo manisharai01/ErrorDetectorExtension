@@ -75,6 +75,10 @@ function extFor(language: Language): string {
     case 'rust': return 'rs';
     case 'java': return 'java';
     case 'kotlin': return 'kt';
+    case 'swift': return 'swift';
+    case 'c': return 'c';
+    case 'cpp': return 'cpp';
+    case 'php': return 'php';
   }
 }
 

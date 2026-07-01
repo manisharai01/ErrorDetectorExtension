@@ -11,6 +11,7 @@
 import { parentPort, workerData } from 'worker_threads';
 import { Analyzer } from './analyzer';
 import { registerAllRules } from '../rules/index';
+import { registerPlugins } from './plugin-loader';
 import type { ResolvedConfig } from '../config/types';
 
 interface Req {
@@ -22,7 +23,11 @@ interface Req {
 async function main(): Promise<void> {
   registerAllRules();
   const config = workerData.config as ResolvedConfig;
-  // ResolvedConfig Maps survive structuredClone across worker_threads.
+  // ResolvedConfig Maps (and the plugins[]/rootDir fields) survive
+  // structuredClone across worker_threads, so each worker loads the same
+  // plugin rules the main process did. Errors are swallowed here — the main
+  // process already surfaced them once at startup.
+  registerPlugins(config);
   const analyzer = new Analyzer(config);
 
   parentPort!.on('message', async (req: Req) => {

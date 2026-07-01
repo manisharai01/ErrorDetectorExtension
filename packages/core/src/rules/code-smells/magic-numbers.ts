@@ -75,7 +75,7 @@ export const magicNumbersRule: Rule = {
   name: 'magic-numbers',
   category: 'quality',
   severity: Severity.Info,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin'],
+  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin', 'swift', 'c', 'cpp', 'php'],
   description: 'Numeric literals used inline instead of a named constant.',
   docs: [
     '# magic-numbers (IED-Q003)',

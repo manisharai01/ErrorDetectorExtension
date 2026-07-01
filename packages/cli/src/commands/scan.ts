@@ -3,6 +3,7 @@ import * as path from 'path';
 import { Command } from 'commander';
 import {
   registerAllRules,
+  registerPlugins,
   registry,
   Analyzer,
   WorkerPool,
@@ -60,6 +61,13 @@ export function scanCommand(): Command {
         return;
       }
       if (opts.cache === false) config.cache = false;
+
+      // Load external rule packages (the marketplace) named in .iedrc "plugins".
+      // A broken plugin is reported but never aborts the scan.
+      const pluginErrors = registerPlugins(config);
+      for (const e of pluginErrors) {
+        process.stderr.write(`Warning: plugin "${e.spec}" — ${e.message}\n`);
+      }
 
       const ignore = IgnoreMatcher.fromFiles(rootDir);
       const files = collectFiles(paths, config, ignore, rootDir);

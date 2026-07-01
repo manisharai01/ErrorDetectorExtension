@@ -42,6 +42,8 @@ export function defaultResolvedConfig(rootDir: string = process.cwd()): Resolved
   return {
     ruleSeverities: new Map(),
     ruleOptions: new Map(),
+    plugins: [],
+    ai: {},
     include: [...DEFAULT_INCLUDE],
     exclude: [...DEFAULT_EXCLUDE],
     baseline: null,
@@ -72,10 +74,15 @@ function applyRuleSetting(
 
 /** Shallow-merge `override` onto `base`, with arrays/rules replaced sensibly. */
 function mergeConfig(base: IEDConfig, override: IEDConfig): IEDConfig {
+  const plugins =
+    base.plugins || override.plugins
+      ? [...new Set([...(base.plugins ?? []), ...(override.plugins ?? [])])]
+      : undefined;
   return {
     ...base,
     ...override,
     rules: { ...(base.rules ?? {}), ...(override.rules ?? {}) },
+    plugins,
     include: override.include ?? base.include,
     exclude: override.exclude ?? base.exclude
   };
@@ -105,6 +112,8 @@ export function resolveConfig(userConfig: IEDConfig, rootDir: string): ResolvedC
   return {
     ruleSeverities,
     ruleOptions,
+    plugins: userConfig.plugins ?? [],
+    ai: userConfig.ai ?? {},
     include: userConfig.include ?? [...DEFAULT_INCLUDE],
     exclude: userConfig.exclude ?? [...DEFAULT_EXCLUDE],
     baseline: userConfig.baseline ?? null,
