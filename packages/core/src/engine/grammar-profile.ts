@@ -226,6 +226,62 @@ const PHP_PROFILE: GrammarProfile = {
   commentNodes: ['comment']
 };
 
+const CSHARP: GrammarProfile = {
+  stringNodes: ['string_literal', 'verbatim_string_literal', 'interpolated_string_expression', 'raw_string_literal'],
+  numberNodes: ['integer_literal', 'real_literal'],
+  nestingNodes: [
+    'if_statement',
+    'for_statement',
+    'for_each_statement',
+    'while_statement',
+    'do_statement',
+    'switch_statement',
+    'try_statement'
+  ],
+  complexityNodes: [
+    'if_statement',
+    'for_statement',
+    'for_each_statement',
+    'while_statement',
+    'do_statement',
+    'switch_section',
+    'catch_clause',
+    'conditional_expression'
+  ],
+  booleanOpNodes: [],
+  logicalOperators: ['&&', '||'],
+  functionNodes: ['method_declaration', 'constructor_declaration', 'local_function_statement', 'lambda_expression'],
+  commentNodes: ['comment']
+};
+
+const RUBY_PROFILE: GrammarProfile = {
+  stringNodes: ['string'],
+  numberNodes: ['integer', 'float'],
+  nestingNodes: ['if', 'unless', 'while', 'until', 'for', 'case', 'begin'],
+  complexityNodes: [
+    'if',
+    'elsif',
+    'unless',
+    'while',
+    'until',
+    'for',
+    'when',
+    'rescue',
+    'conditional',
+    'if_modifier',
+    'unless_modifier',
+    'while_modifier',
+    'until_modifier',
+    'rescue_modifier'
+  ],
+  booleanOpNodes: [],
+  // Ruby's binary node is `binary` (not `binary_expression`); the complexity
+  // rule handles both. `and`/`or` are the keyword forms.
+  logicalOperators: ['&&', '||', 'and', 'or'],
+  functionNodes: ['method', 'singleton_method', 'block', 'do_block', 'lambda'],
+  commentNodes: ['comment']
+};
+
 export const GRAMMAR_PROFILES: Record<Language, GrammarProfile> = {
   javascript: JS,
   typescript: JS,
@@ -240,7 +296,9 @@ export const GRAMMAR_PROFILES: Record<Language, GrammarProfile> = {
   swift: SWIFT,
   c: C_PROFILE,
   cpp: CPP,
-  php: PHP_PROFILE
+  php: PHP_PROFILE,
+  csharp: CSHARP,
+  ruby: RUBY_PROFILE
 };
 
 export function profileFor(language: Language): GrammarProfile {

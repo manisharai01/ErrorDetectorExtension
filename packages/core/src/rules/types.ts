@@ -37,8 +37,7 @@ export type Language =
   | 'cpp'
   | 'php'
   | 'csharp'
-  | 'ruby'
-  | 'dart';
+  | 'ruby';
 
 export enum Severity {
   Error = 'error',
@@ -182,8 +181,7 @@ export const ALL_LANGUAGES: Language[] = [
   'cpp',
   'php',
   'csharp',
-  'ruby',
-  'dart'
+  'ruby'
 ];
 
 /** True if `rule` applies to `language`. */

@@ -81,7 +81,6 @@ function extFor(language: Language): string {
     case 'php': return 'php';
     case 'csharp': return 'cs';
     case 'ruby': return 'rb';
-    case 'dart': return 'dart';
   }
 }
 

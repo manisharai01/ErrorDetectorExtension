@@ -28,8 +28,7 @@ export const SOURCE_EXTS = new Set([
   '.hxx',
   '.php',
   '.cs',
-  '.rb',
-  '.dart'
+  '.rb'
 ]);
 
 /**

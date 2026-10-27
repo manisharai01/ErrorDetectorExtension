@@ -27,6 +27,8 @@ import './kotlin.test';
 import './swift.test';
 import './c-family.test';
 import './php.test';
+import './csharp.test';
+import './ruby.test';
 import './plugin-loader.test';
 import './hotspots.test';
 

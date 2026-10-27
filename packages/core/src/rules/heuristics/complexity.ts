@@ -48,8 +48,10 @@ function scoreFunction(fnNode: TSNode, profile: GrammarProfile): number {
     } else if (booleanOpNodes.has(node.type)) {
       // Python: `a and b` is a `boolean_operator` node.
       score += 1;
-    } else if (node.type === 'binary_expression') {
-      // JS/Go: `&&` / `||` on a binary_expression.
+    } else if (node.type === 'binary_expression' || node.type === 'binary') {
+      // JS/Go/C#: `&&` / `||` on a `binary_expression`; Ruby uses `binary`
+      // (also `and`/`or`). Only the logical operators in the profile count, so
+      // arithmetic/comparison binaries are ignored.
       const op = node.childForFieldName('operator')?.text;
       if (op && logicalOps.has(op)) score += 1;
     }
@@ -77,7 +79,7 @@ export const cognitiveComplexityRule: Rule = {
   name: 'cognitive-complexity',
   category: 'quality',
   severity: Severity.Info,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin', 'swift', 'c', 'cpp', 'php'],
+  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin', 'swift', 'c', 'cpp', 'php', 'csharp', 'ruby'],
   description: 'Function with high cognitive complexity (nested control flow, boolean chains).',
   docs: [
     '# cognitive-complexity (IED-H001)',

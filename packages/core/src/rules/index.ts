@@ -76,6 +76,12 @@ import { cFamilyRules } from './c-family/index';
 // PHP pack.
 import { phpRules } from './php/index';
 
+// C# pack.
+import { csharpRules } from './csharp/index';
+
+// Ruby pack.
+import { rubyRules } from './ruby/index';
+
 /** Every built-in rule, in no particular order (the registry sorts on read). */
 export const BUILTIN_RULES: Rule[] = [
   // Universal.
@@ -144,7 +150,13 @@ export const BUILTIN_RULES: Rule[] = [
   ...cFamilyRules,
 
   // PHP pack.
-  ...phpRules
+  ...phpRules,
+
+  // C# pack.
+  ...csharpRules,
+
+  // Ruby pack.
+  ...rubyRules
 ];
 
 let registered = false;

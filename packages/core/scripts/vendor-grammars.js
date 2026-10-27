@@ -37,7 +37,9 @@ const items = [
   ['tree-sitter-wasms/out/tree-sitter-php.wasm', 'tree-sitter-php.wasm'],
   ['tree-sitter-wasms/out/tree-sitter-c_sharp.wasm', 'tree-sitter-c_sharp.wasm'],
   ['tree-sitter-wasms/out/tree-sitter-ruby.wasm', 'tree-sitter-ruby.wasm'],
-  ['tree-sitter-wasms/out/tree-sitter-dart.wasm', 'tree-sitter-dart.wasm'],
+  // NOTE: Dart is intentionally omitted — the tree-sitter-wasms dart grammar is
+  // ABI 15, which web-tree-sitter 0.22 (max ABI 14) cannot load. Re-add here
+  // once the runtime is upgraded to support ABI 15.
   ['web-tree-sitter/tree-sitter.wasm', 'tree-sitter.wasm']
 ];
 
