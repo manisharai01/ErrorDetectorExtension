@@ -11,11 +11,11 @@
  * Works across languages (both `//` and `#` comment markers).
  */
 import {
+  ALL_LANGUAGES,
   Severity,
   nodeRange,
   type Rule,
-  type RuleContext,
-  type TSNode
+  type RuleContext
 } from '../types';
 import { profileFor } from '../../engine/grammar-profile';
 
@@ -27,7 +27,7 @@ export const suppressionWithoutReasonRule: Rule = {
   name: 'suppression-without-reason',
   category: 'quality',
   severity: Severity.Warning,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin', 'swift', 'c', 'cpp', 'php', 'csharp', 'ruby'],
+  languages: ALL_LANGUAGES,
   description: 'An inline suppression comment has no reason explaining why.',
   docs: [
     '# suppression-without-reason (IED-Q013)',
@@ -42,32 +42,23 @@ export const suppressionWithoutReasonRule: Rule = {
     'Suppressions (and their reasons) are recorded and shown in the dashboard.'
   ].join('\n'),
 
+  nodeTypes: (language) => profileFor(language).commentNodes,
+
   run(ctx: RuleContext): void {
-    const commentNodes = new Set(profileFor(ctx.language).commentNodes);
-    const walk = (node: TSNode): void => {
-      if (commentNodes.has(node.type)) {
-        const m = DIRECTIVE.exec(node.text);
-        if (m) {
-          const kind = m[1];
-          const reason = (m[3] ?? '').replace(/^[\s—:-]+/, '').trim();
-          // `ied-enable` just re-enables; only disables need a justification.
-          const isDisable = kind.startsWith('disable');
-          if (isDisable && reason.length === 0) {
-            if (!ctx.isSuppressed(node.startPosition.row, 'IED-Q013')) {
-              ctx.report({
-                message: 'Suppression has no reason — add an explanation after the rule id.',
-                severity: Severity.Warning,
-                range: nodeRange(node)
-              });
-            }
-          }
-        }
-      }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-    walk(ctx.tree.rootNode);
+    for (const node of ctx.nodesOfType(profileFor(ctx.language).commentNodes)) {
+      const m = DIRECTIVE.exec(node.text);
+      if (!m) continue;
+      const kind = m[1];
+      const reason = (m[3] ?? '').replace(/^[\s—:-]+/, '').trim();
+      // `ied-enable` just re-enables; only disables need a justification.
+      const isDisable = kind.startsWith('disable');
+      if (!isDisable || reason.length > 0) continue;
+      if (ctx.isSuppressed(node.startPosition.row, 'IED-Q013')) continue;
+      ctx.report({
+        message: 'Suppression has no reason — add an explanation after the rule id.',
+        severity: Severity.Warning,
+        range: nodeRange(node)
+      });
+    }
   }
 };

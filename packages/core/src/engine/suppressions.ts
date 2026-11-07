@@ -9,6 +9,8 @@
  *   /* ied-disable IED-Q001 *\/ ... /* ied-enable IED-Q001 *\/  (block)
  */
 
+import type { Language } from '../rules/types';
+
 export interface Suppressions {
   /** row -> set of suppressed rule ids, or '*' for all. */
   byRow: Map<number, Set<string>>;
@@ -70,6 +72,17 @@ export function parseSuppressions(source: string): Suppressions {
 function isComment(line: string): boolean {
   const t = line.trim();
   return t.startsWith('//') || t.startsWith('/*') || t.startsWith('*') || t.startsWith('#');
+}
+
+/**
+ * The comment line that suppresses `ruleId` on the following line, in the
+ * language's comment syntax, with a placeholder reason (a bare suppression is
+ * itself flagged by suppression-without-reason, IED-Q013). Used by the editor
+ * "Suppress" quick fixes.
+ */
+export function suppressionComment(language: Language | null, ruleId: string): string {
+  const marker = language === 'python' || language === 'ruby' ? '#' : '//';
+  return `${marker} ied-disable-next-line ${ruleId} — explain why this is safe here`;
 }
 
 export function isSuppressed(s: Suppressions, row: number, ruleId: string): boolean {

@@ -91,8 +91,10 @@ export const sqlInjectionRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['call_expression'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('call_expression')) {
       if (node.type === 'call_expression') {
         const fn = node.childForFieldName('function');
         if (fn && fn.type === 'selector_expression') {
@@ -115,12 +117,6 @@ export const sqlInjectionRule: Rule = {
           }
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

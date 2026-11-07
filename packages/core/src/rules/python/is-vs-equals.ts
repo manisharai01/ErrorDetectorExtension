@@ -38,8 +38,10 @@ export const isVsEqualsRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['comparison_operator'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('comparison_operator')) {
       if (node.type === 'comparison_operator') {
         // Operator tokens are anonymous children whose type is `is` or `is not`.
         const usesIs = (() => {
@@ -61,11 +63,6 @@ export const isVsEqualsRule: Rule = {
           }
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const c = node.child(i);
-        if (c) walk(c);
-      }
-    };
-    walk(ctx.tree.rootNode);
+    }
   }
 };

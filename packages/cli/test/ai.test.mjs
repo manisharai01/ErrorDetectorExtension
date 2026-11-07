@@ -58,7 +58,7 @@ await test('resolveAiSettings: default model when nothing configured', () => {
     const s = resolveAiSettings({ ai: {} }, {});
     assert.equal(s.apiKey, null);
     assert.equal(s.model, DEFAULT_AI_MODEL);
-    assert.equal(DEFAULT_AI_MODEL, 'claude-opus-4-8');
+    assert.equal(DEFAULT_AI_MODEL, 'claude-opus-5-5');
   } finally {
     if (prev !== undefined) process.env.ANTHROPIC_API_KEY = prev;
     if (prevModel !== undefined) process.env.IED_AI_MODEL = prevModel;
@@ -130,7 +130,7 @@ await test('explainFinding: drives the client and parses the reply', async () =>
   const ex = await explainFinding(client, explainInput);
   assert.equal(ex.what, 'hardcoded secret');
   assert.ok(client.lastReq.user.includes('IED-S001'), 'prompt reached the client');
-  assert.equal(client.lastReq.maxTokens, 1024);
+  assert.equal(client.lastReq.maxTokens, 16000);
 });
 
 await test('buildGeneratePrompt includes description, language, and id', () => {
@@ -164,7 +164,7 @@ await test('generateRule: drives the client and parses the reply', async () => {
   const g = await generateRule(client, { description: 'flag foo', language: 'javascript' });
   assert.ok(g.code.includes('module.exports'));
   assert.ok(client.lastReq.user.includes('flag foo'));
-  assert.equal(client.lastReq.maxTokens, 2048);
+  assert.equal(client.lastReq.maxTokens, 16000);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

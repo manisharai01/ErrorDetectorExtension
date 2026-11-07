@@ -5,8 +5,8 @@ export class DiagnosticProvider {
   private collection: vscode.DiagnosticCollection;
   private byFile = new Map<string, Diagnostic[]>();
 
-  constructor() {
-    this.collection = vscode.languages.createDiagnosticCollection('invisibleErrors');
+  constructor(name = 'invisibleErrors') {
+    this.collection = vscode.languages.createDiagnosticCollection(name);
   }
 
   set(filePath: string, diags: Diagnostic[]): void {

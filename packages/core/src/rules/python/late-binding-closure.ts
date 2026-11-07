@@ -97,8 +97,10 @@ export const lateBindingClosureRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['lambda'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('lambda')) {
       if (node.type === 'lambda') {
         const loopVars = enclosingLoopVars(node);
         if (loopVars.size > 0) {
@@ -122,11 +124,6 @@ export const lateBindingClosureRule: Rule = {
           }
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const c = node.child(i);
-        if (c) walk(c);
-      }
-    };
-    walk(ctx.tree.rootNode);
+    }
   }
 };

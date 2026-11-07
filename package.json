@@ -10,7 +10,9 @@
     "build:cli": "npm run build -w packages/cli",
     "build:vscode": "npm run build -w packages/vscode",
     "test": "npm test --workspaces --if-present",
-    "bench": "tsc -p packages/core/tsconfig.test.json && node packages/core/dist-test/test/benchmarks/perf.bench.js"
+    "bench": "tsc -p packages/core/tsconfig.test.json && node packages/core/dist-test/test/benchmarks/perf.bench.js",
+    "docs:rules": "node scripts/rules-doc.js",
+    "package:vscode": "npm run package -w packages/vscode"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

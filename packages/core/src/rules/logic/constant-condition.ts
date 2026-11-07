@@ -18,6 +18,8 @@ import {
   type TSNode
 } from '../types';
 
+const BRANCH_TYPES = ['if_statement', 'ternary_expression', 'while_statement', 'do_statement'];
+
 /** Unwrap `(…)` parens to get at the real condition expression. */
 function unwrap(node: TSNode | null): TSNode | null {
   let cur = node;
@@ -50,6 +52,8 @@ export const constantConditionRule: Rule = {
     'always a leftover debugging edit. `while (true)` is allowed (intentional loop).'
   ].join('\n'),
 
+  nodeTypes: () => BRANCH_TYPES,
+
   run(ctx: RuleContext): void {
     const report = (node: TSNode, value: 'true' | 'false', kind: string): void => {
       if (ctx.isSuppressed(node.startPosition.row, 'IED-L008')) return;
@@ -61,24 +65,19 @@ export const constantConditionRule: Rule = {
       });
     };
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType(BRANCH_TYPES)) {
       if (node.type === 'if_statement') {
         const v = literalBool(node.childForFieldName('condition'));
         if (v) report(node.childForFieldName('condition') ?? node, v, 'if');
       } else if (node.type === 'ternary_expression') {
         const v = literalBool(node.childForFieldName('condition'));
         if (v) report(node.childForFieldName('condition') ?? node, v, 'Ternary');
-      } else if (node.type === 'while_statement' || node.type === 'do_statement') {
-        // Only `false` — `while (true)` is the idiomatic infinite loop.
+      } else {
+        // while_statement / do_statement: only `false` — `while (true)` is the
+        // idiomatic infinite loop.
         const v = literalBool(node.childForFieldName('condition'));
         if (v === 'false') report(node.childForFieldName('condition') ?? node, v, 'Loop');
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

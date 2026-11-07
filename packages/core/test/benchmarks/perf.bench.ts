@@ -1,23 +1,22 @@
 /**
- * Performance benchmark — two honest checks:
+ * Performance benchmark — two checks, both enforced:
  *
- *   1. TYPICAL-FILE SLA (the meaningful pass/fail): a ~2,000-line file analyzed
- *      under TYPICAL_BUDGET_MS. This reflects real-world usage (most files are
- *      well under a few thousand lines) and is the gate this benchmark enforces.
+ *   1. TYPICAL-FILE SLA: a ~2,000-line file analyzed under TYPICAL_BUDGET_MS.
+ *      This reflects real-world usage (most files are well under a few
+ *      thousand lines).
  *
- *   2. LARGE-FILE REGRESSION GUARD: a ~50,000-line file. We log its P95 and fail
- *      only on a gross regression (LARGE_GUARD_MS) — this is what catches an
- *      O(n²) regression like the per-diagnostic `source.split('\n')` bug
- *      (which made this ~52s before it was fixed).
+ *   2. SPEC TARGET: a ~50,000-line file analyzed under LARGE_BUDGET_MS (the
+ *      spec's "50k lines < 2s"). It also catches O(n²) regressions like the old
+ *      per-diagnostic `source.split('\n')` bug (which made this ~52s).
  *
- * NOTE on the spec's "50k lines < 2s" aspiration: the engine runs each rule as
- * an independent pass over the tree (29 rules → 29 traversals), which the SDK
- * deliberately favours for rule simplicity ("no complex visitor patterns yet").
- * A 50k-line file therefore lands around ~4–5s, traversal-bound, NOT diagnostic-
- * bound. Reaching <2s on 50k lines would require a unified single-pass visitor
- * that dispatches all rules in one traversal — a deliberate future optimization,
- * not done here to keep the rule contract simple. Real files (≤ a few k lines)
- * are comfortably sub-second.
+ * The engine meets the 2s target because rules no longer walk the tree
+ * themselves: the analyzer collects every node type the rules declare in ONE
+ * native traversal (`NodeIndex`) and rules read their slice via
+ * `ctx.nodesOfType`. Before that, each rule was its own JS walk (~100ms per
+ * rule per 50k lines) and this file took ~4–6s.
+ *
+ * Slower machines can relax the budgets with IED_BENCH_TYPICAL_MS /
+ * IED_BENCH_LARGE_MS.
  */
 
 import { Analyzer } from '../../src/engine/analyzer';
@@ -25,9 +24,9 @@ import { registerAllRules } from '../../src/rules/index';
 import { defaultResolvedConfig } from '../../src/config/resolve';
 
 const TYPICAL_LINES = 2_000;
-const TYPICAL_BUDGET_MS = 800; // real-world SLA — the enforced gate
+const TYPICAL_BUDGET_MS = Number(process.env.IED_BENCH_TYPICAL_MS) || 800; // real-world SLA
 const LARGE_LINES = 50_000;
-const LARGE_GUARD_MS = 10_000; // regression backstop (catches O(n²)); aspiration is 2000
+const LARGE_BUDGET_MS = Number(process.env.IED_BENCH_LARGE_MS) || 2_000; // spec: 50k lines < 2s
 const ITERATIONS = 5;
 
 /** A varied block touching several rule categories; ~11 lines each. */
@@ -98,8 +97,8 @@ async function main(): Promise<void> {
     console.log(`FAIL: typical-file P95 ${typical.toFixed(0)}ms exceeds SLA ${TYPICAL_BUDGET_MS}ms`);
     failed = true;
   }
-  if (large > LARGE_GUARD_MS) {
-    console.log(`FAIL: large-file P95 ${large.toFixed(0)}ms exceeds regression guard ${LARGE_GUARD_MS}ms`);
+  if (large > LARGE_BUDGET_MS) {
+    console.log(`FAIL: 50k-line P95 ${large.toFixed(0)}ms exceeds the spec target ${LARGE_BUDGET_MS}ms`);
     failed = true;
   }
 
@@ -107,8 +106,8 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   console.log(
-    `PASS (typical < ${TYPICAL_BUDGET_MS}ms; large ${large.toFixed(0)}ms < ${LARGE_GUARD_MS}ms guard. ` +
-      `Spec's 50k<2s aspiration needs a single-pass visitor — see file header.)`
+    `PASS (typical ${typical.toFixed(0)}ms < ${TYPICAL_BUDGET_MS}ms; ` +
+      `50k lines ${large.toFixed(0)}ms < ${LARGE_BUDGET_MS}ms spec target)`
   );
 }
 

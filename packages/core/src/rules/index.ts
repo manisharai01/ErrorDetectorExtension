@@ -29,6 +29,9 @@ import { recursionBaseCaseRule } from './logic/recursion-base-case';
 import { typeGuardContradictionRule } from './logic/type-guard-contradiction';
 import { constantConditionRule } from './logic/constant-condition';
 import { unreachableCodeRule } from './logic/unreachable-code';
+import { missingAwaitRule } from './logic/missing-await';
+import { nullDerefRule } from './logic/null-deref';
+import { inconsistentReturnRule } from './logic/inconsistent-return';
 
 // Code smells / quality.
 import { commentedCodeRule } from './code-smells/commented-code';
@@ -51,6 +54,7 @@ import { nestedLoopRule } from './performance/nested-loop';
 // Heuristics.
 import { cognitiveComplexityRule } from './heuristics/complexity';
 import { overwrittenBeforeUseRule } from './heuristics/overwritten-before-use';
+import { inconsistentUsageRule } from './heuristics/inconsistent-usage';
 
 // Python pack.
 import { pythonRules } from './python/index';
@@ -81,6 +85,8 @@ import { csharpRules } from './csharp/index';
 
 // Ruby pack.
 import { rubyRules } from './ruby/index';
+// Dart / Flutter pack.
+import { dartRules } from './dart/index';
 
 /** Every built-in rule, in no particular order (the registry sorts on read). */
 export const BUILTIN_RULES: Rule[] = [
@@ -105,6 +111,9 @@ export const BUILTIN_RULES: Rule[] = [
   typeGuardContradictionRule,
   constantConditionRule,
   unreachableCodeRule,
+  missingAwaitRule,
+  nullDerefRule,
+  inconsistentReturnRule,
 
   // Code smells / quality.
   commentedCodeRule,
@@ -127,6 +136,7 @@ export const BUILTIN_RULES: Rule[] = [
   // Heuristics.
   cognitiveComplexityRule,
   overwrittenBeforeUseRule,
+  inconsistentUsageRule,
 
   // Python pack.
   ...pythonRules,
@@ -156,7 +166,9 @@ export const BUILTIN_RULES: Rule[] = [
   ...csharpRules,
 
   // Ruby pack.
-  ...rubyRules
+  ...rubyRules,
+  // Dart / Flutter pack.
+  ...dartRules
 ];
 
 let registered = false;

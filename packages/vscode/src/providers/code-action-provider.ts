@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
-import { registry, Diagnostic } from '@ied/core';
+import { registry, suppressionComment, Diagnostic } from '@ied/core';
 import { Metrics } from '../metrics';
+import { iedLanguageFor } from '../languages';
 import { DiagnosticProvider } from './diagnostic-provider';
 
 /**
@@ -38,8 +39,10 @@ export class CodeActionProvider implements vscode.CodeActionProvider {
     const edits = rule.fix(coreDiag, doc.getText());
     if (!edits || edits.length === 0) return undefined;
 
-    const a = new vscode.CodeAction(`Fix ${ruleId}`, vscode.CodeActionKind.QuickFix);
+    const title = rule.fixTitle?.(coreDiag) ?? `Fix ${ruleId}`;
+    const a = new vscode.CodeAction(`${title} (${ruleId})`, vscode.CodeActionKind.QuickFix);
     a.diagnostics = [d];
+    a.isPreferred = true;
     const edit = new vscode.WorkspaceEdit();
     for (const e of edits) {
       const start = doc.positionAt(e.startIndex);
@@ -47,8 +50,8 @@ export class CodeActionProvider implements vscode.CodeActionProvider {
       edit.replace(doc.uri, new vscode.Range(start, end), e.newText);
     }
     a.edit = edit;
+    // Counted when the fix is applied (the command runs), not when it is offered.
     a.command = { command: 'invisibleErrors.recordAutoFix', title: 'record', arguments: [] };
-    this.metrics.recordAutoFix();
     return a;
   }
 
@@ -65,7 +68,10 @@ export class CodeActionProvider implements vscode.CodeActionProvider {
     const startLine = d.range.start.line;
     const indentMatch = doc.lineAt(startLine).text.match(/^\s*/);
     const indent = indentMatch ? indentMatch[0] : '';
-    a.edit.insert(doc.uri, new vscode.Position(startLine, 0), `${indent}// invisible-ignore-next-line ${ruleId}\n`);
+    // The engine's own directive, in the file's comment syntax, with a reason
+    // placeholder (a bare suppression is itself flagged by IED-Q013).
+    const comment = suppressionComment(iedLanguageFor(doc), ruleId);
+    a.edit.insert(doc.uri, new vscode.Position(startLine, 0), `${indent}${comment}\n`);
     return a;
   }
 }

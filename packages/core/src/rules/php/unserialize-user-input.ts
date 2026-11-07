@@ -61,8 +61,10 @@ export const unserializeUserInputRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['function_call_expression'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('function_call_expression')) {
       if (node.type === 'function_call_expression') {
         const fn = node.childForFieldName('function');
         if (fn?.type === 'name' && fn.text === 'unserialize') {
@@ -86,12 +88,6 @@ export const unserializeUserInputRule: Rule = {
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

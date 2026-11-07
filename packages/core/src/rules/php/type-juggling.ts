@@ -14,8 +14,7 @@ import {
   Severity,
   nodeRange,
   type Rule,
-  type RuleContext,
-  type TSNode
+  type RuleContext
 } from '../types';
 
 const LOOSE_OPS = new Set(['==', '!=']);
@@ -40,29 +39,22 @@ export const typeJugglingRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['binary_expression'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
-      if (node.type === 'binary_expression') {
-        const op = node.childForFieldName('operator');
-        if (op && LOOSE_OPS.has(op.text)) {
-          const row = node.startPosition.row;
-          if (!ctx.isSuppressed(row, 'IED-L018')) {
-            ctx.report({
-              message: 'Use === / !== to avoid PHP type juggling.',
-              severity: Severity.Warning,
-              range: nodeRange(node),
-              data: { operator: op.text }
-            });
-          }
+    for (const node of ctx.nodesOfType('binary_expression')) {
+      const op = node.childForFieldName('operator');
+      if (op && LOOSE_OPS.has(op.text)) {
+        const row = node.startPosition.row;
+        if (!ctx.isSuppressed(row, 'IED-L018')) {
+          ctx.report({
+            message: 'Use === / !== to avoid PHP type juggling.',
+            severity: Severity.Warning,
+            range: nodeRange(node),
+            data: { operator: op.text }
+          });
         }
       }
-
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

@@ -13,8 +13,7 @@ import {
   Severity,
   nodeRange,
   type Rule,
-  type RuleContext,
-  type TSNode
+  type RuleContext
 } from '../types';
 
 const DEBUG_FNS = new Set(['var_dump', 'print_r', 'var_export']);
@@ -37,31 +36,24 @@ export const debugOutputRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['function_call_expression'],
+
   run(ctx: RuleContext): void {
     if (ctx.isTestFile) return;
 
-    const walk = (node: TSNode): void => {
-      if (node.type === 'function_call_expression') {
-        const fn = node.childForFieldName('function');
-        if (fn?.type === 'name' && DEBUG_FNS.has(fn.text)) {
-          const row = node.startPosition.row;
-          if (!ctx.isSuppressed(row, 'IED-Q014')) {
-            ctx.report({
-              message: 'Remove var_dump/print_r before shipping.',
-              severity: Severity.Warning,
-              range: nodeRange(node),
-              data: { fn: fn.text }
-            });
-          }
+    for (const node of ctx.nodesOfType('function_call_expression')) {
+      const fn = node.childForFieldName('function');
+      if (fn?.type === 'name' && DEBUG_FNS.has(fn.text)) {
+        const row = node.startPosition.row;
+        if (!ctx.isSuppressed(row, 'IED-Q014')) {
+          ctx.report({
+            message: 'Remove var_dump/print_r before shipping.',
+            severity: Severity.Warning,
+            range: nodeRange(node),
+            data: { fn: fn.text }
+          });
         }
       }
-
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

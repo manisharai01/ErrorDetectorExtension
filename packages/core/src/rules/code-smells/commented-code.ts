@@ -2,12 +2,13 @@
  * IED-Q002 — commented-code
  *
  * Flags a run of >=3 consecutive comment lines whose stripped text looks like
- * code (contains `;`, `{`, `}`, `=>`, or a code keyword). Walks the tree for
- * `comment` nodes, groups consecutive single-line comments, and reports on the
- * first comment of a qualifying run.
+ * code (contains `;`, `{`, `}`, `=>`, or a code keyword). Reads the comment
+ * nodes from the index, groups consecutive single-line comments, and reports on
+ * the first comment of a qualifying run.
  */
 
 import {
+  ALL_LANGUAGES,
   Severity,
   nodeRange,
   type Rule,
@@ -40,7 +41,7 @@ export const commentedCodeRule: Rule = {
   name: 'commented-code',
   category: 'quality',
   severity: Severity.Info,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin', 'swift', 'c', 'cpp', 'php', 'csharp', 'ruby'],
+  languages: ALL_LANGUAGES,
   description: 'A block of consecutive commented-out lines that resemble code.',
   docs: [
     '# commented-code (IED-Q002)',
@@ -57,18 +58,11 @@ export const commentedCodeRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: (language) => profileFor(language).commentNodes,
+
   run(ctx: RuleContext): void {
-    // Collect all comment nodes in document order.
-    const commentNodes = new Set(profileFor(ctx.language).commentNodes);
-    const comments: TSNode[] = [];
-    const walk = (node: TSNode): void => {
-      if (commentNodes.has(node.type)) comments.push(node);
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-    walk(ctx.tree.rootNode);
+    // All comment nodes, in document order.
+    const comments = ctx.nodesOfType(profileFor(ctx.language).commentNodes);
 
     // Group comments into runs of consecutive lines that look like code.
     let runStart: TSNode | null = null;

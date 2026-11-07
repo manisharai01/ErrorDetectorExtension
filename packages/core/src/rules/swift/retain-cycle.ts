@@ -103,8 +103,10 @@ export const retainCycleRule: Rule = {
     '`[weak self]` / `[unowned self]`, are silent.'
   ].join('\n'),
 
+  nodeTypes: () => ['lambda_literal'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('lambda_literal')) {
       if (node.type === 'lambda_literal') {
         if (!hasWeakCapture(node) && bodyReferencesSelf(node)) {
           if (!ctx.isSuppressed(node.startPosition.row, 'IED-R009')) {
@@ -116,12 +118,6 @@ export const retainCycleRule: Rule = {
           }
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

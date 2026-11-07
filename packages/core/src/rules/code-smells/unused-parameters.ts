@@ -2,29 +2,48 @@
  * IED-Q006 — unused-parameters
  *
  * Flags function/method parameters that are never referenced in the body.
- * Parameters prefixed with `_` are intentionally ignored. Walks every function
- * node, extracts the parameter identifier names from `formal_parameters`, and
- * checks the body's identifiers for a use of each.
+ * Parameters prefixed with `_` are intentionally ignored. For every indexed
+ * function node, extracts the parameter identifier names from
+ * `formal_parameters` and checks the body's identifiers for a use of each.
+ *
+ * TypeScript parameter properties (`constructor(private svc: Svc)`) declare a
+ * class field, so they are never "unused" and are skipped. A parameter read by
+ * another parameter's default value (`(a, b = a) => …`) counts as used.
+ *
+ * Auto-fixable: prefixes the parameter with `_` to mark it intentionally unused.
  */
 
 import {
   Severity,
   nodeRange,
+  type Diagnostic,
   type Rule,
   type RuleContext,
+  type TextEdit,
   type TSNode
 } from '../types';
+import { offsetAt } from '../util';
 
-const FUNCTION_TYPES = new Set([
+const FUNCTION_TYPES = [
   'function_declaration',
   'arrow_function',
   'function_expression',
   'method_definition'
-]);
+];
+
+/** Modifiers that turn a constructor parameter into a class property. */
+const PROPERTY_MODIFIERS = new Set(['accessibility_modifier', 'override_modifier', 'readonly']);
 
 interface Param {
   name: string;
   node: TSNode;
+}
+
+function isParameterProperty(param: TSNode): boolean {
+  for (let i = 0; i < param.childCount; i++) {
+    if (PROPERTY_MODIFIERS.has(param.child(i)?.type ?? '')) return true;
+  }
+  return false;
 }
 
 /**
@@ -41,6 +60,7 @@ function collectParams(formals: TSNode): Param[] {
     if (child.type === 'identifier') {
       out.push({ name: child.text, node: child });
     } else if (child.type === 'required_parameter' || child.type === 'optional_parameter') {
+      if (isParameterProperty(child)) continue;
       const pattern = child.childForFieldName('pattern');
       if (pattern && pattern.type === 'identifier') {
         out.push({ name: pattern.text, node: pattern });
@@ -66,37 +86,32 @@ export const unusedParametersRule: Rule = {
     '```js',
     'function f(a, b) { return a; } // b is unused',
     'function g(_unused, b) { return b; } // ok',
-    '```'
+    '```',
+    '',
+    'Quick fix: prefix the parameter with `_`.'
   ].join('\n'),
 
-  run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
-      if (FUNCTION_TYPES.has(node.type)) {
-        inspectFunction(node);
-      }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
+  nodeTypes: () => FUNCTION_TYPES,
 
-    const inspectFunction = (fn: TSNode): void => {
+  run(ctx: RuleContext): void {
+    for (const fn of ctx.nodesOfType(FUNCTION_TYPES)) {
       const formals = fn.childForFieldName('parameters');
       const body = fn.childForFieldName('body');
-      if (!formals || !body) return;
+      if (!formals || !body) continue;
 
       const params = collectParams(formals);
-      if (params.length === 0) return;
+      if (params.length === 0) continue;
 
       // Gather every identifier used inside the body (excluding the param decls,
-      // which live in `parameters`, not `body`).
+      // which live in `parameters`, not `body`), plus identifiers read by other
+      // parameters' default values.
       const used = new Set<string>();
-      for (const id of body.descendantsOfType('identifier')) {
+      for (const id of body.descendantsOfType(['identifier', 'shorthand_property_identifier'])) {
         used.add(id.text);
       }
-      // Shorthand object properties reference an identifier too.
-      for (const id of body.descendantsOfType('shorthand_property_identifier')) {
-        used.add(id.text);
+      const declared = new Set(params.map((p) => p.node.startIndex));
+      for (const id of formals.descendantsOfType('identifier')) {
+        if (!declared.has(id.startIndex)) used.add(id.text);
       }
 
       for (const p of params) {
@@ -110,8 +125,13 @@ export const unusedParametersRule: Rule = {
           data: { paramName: p.name }
         });
       }
-    };
+    }
+  },
 
-    walk(ctx.tree.rootNode);
+  fixTitle: (d) => `Prefix "${String(d.data?.paramName ?? 'parameter')}" with _ (mark as intentionally unused)`,
+
+  fix(diagnostic: Diagnostic, sourceCode: string): TextEdit[] | null {
+    const at = offsetAt(sourceCode, diagnostic.range.start);
+    return [{ startIndex: at, endIndex: at, newText: '_' }];
   }
 };

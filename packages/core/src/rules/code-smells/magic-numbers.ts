@@ -7,6 +7,7 @@
  */
 
 import {
+  ALL_LANGUAGES,
   Severity,
   nodeRange,
   type Rule,
@@ -63,6 +64,33 @@ function isConstInitializer(node: TSNode): boolean {
   return lexical.child(0)?.text === 'const';
 }
 
+const DART_CONST_KEYWORDS = new Set(['const_builtin', 'final_builtin']);
+
+/**
+ * Dart: the number is the value of a `const`/`final` declaration — a top-level
+ * or static constant (`static_final_declaration`), a `const`/`final` local, or
+ * a `final` field (`initialized_identifier` inside a `declaration`).
+ */
+function isDartNamedConstant(node: TSNode): boolean {
+  const parent = node.parent;
+  if (!parent) return false;
+  if (parent.type === 'static_final_declaration') return true;
+  if (parent.type === 'initialized_variable_definition') {
+    return (
+      sameNode(parent.childForFieldName('value'), node) &&
+      DART_CONST_KEYWORDS.has(parent.child(0)?.type ?? '')
+    );
+  }
+  if (parent.type === 'initialized_identifier') {
+    const declaration = parent.parent?.parent;
+    if (!declaration || declaration.type !== 'declaration') return false;
+    for (let i = 0; i < declaration.childCount; i++) {
+      if (DART_CONST_KEYWORDS.has(declaration.child(i)?.type ?? '')) return true;
+    }
+  }
+  return false;
+}
+
 /** True when `node` is the index of a subscript_expression (e.g. `arr[3]`). */
 function isArrayIndex(node: TSNode): boolean {
   const parent = node.parent;
@@ -75,7 +103,7 @@ export const magicNumbersRule: Rule = {
   name: 'magic-numbers',
   category: 'quality',
   severity: Severity.Info,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin', 'swift', 'c', 'cpp', 'php', 'csharp', 'ruby'],
+  languages: ALL_LANGUAGES,
   description: 'Numeric literals used inline instead of a named constant.',
   docs: [
     '# magic-numbers (IED-Q003)',
@@ -89,34 +117,26 @@ export const magicNumbersRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: (language) => profileFor(language).numberNodes,
+
   run(ctx: RuleContext): void {
     // Numeric-literal node types differ per grammar (JS `number`, Python
     // `integer`/`float`, Go `int_literal`/`float_literal`). The const/array-index
-    // exemptions below are JS-shaped; on Python/Go their node-type guards simply
-    // don't match, so those literals are reported (which is correct — they are
-    // magic numbers there too).
-    const numberNodes = new Set(profileFor(ctx.language).numberNodes);
-    const walk = (node: TSNode): void => {
-      if (numberNodes.has(node.type)) {
-        if (
-          !ALLOWED.has(numericText(node)) &&
-          !isConstInitializer(node) &&
-          !isArrayIndex(node) &&
-          !ctx.isSuppressed(node.startPosition.row, 'IED-Q003')
-        ) {
-          ctx.report({
-            message: `Magic number ${node.text} — extract it to a named constant.`,
-            severity: Severity.Info,
-            range: nodeRange(node),
-            data: { value: node.text }
-          });
-        }
-      }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-    walk(ctx.tree.rootNode);
+    // exemptions below are JS-shaped (plus Dart's const/final); on other
+    // grammars their node-type guards simply don't match, so those literals are
+    // reported (which is correct — they are magic numbers there too).
+    const dart = ctx.language === 'dart';
+    for (const node of ctx.nodesOfType(profileFor(ctx.language).numberNodes)) {
+      if (ALLOWED.has(numericText(node))) continue;
+      if (isConstInitializer(node) || isArrayIndex(node)) continue;
+      if (dart && isDartNamedConstant(node)) continue;
+      if (ctx.isSuppressed(node.startPosition.row, 'IED-Q003')) continue;
+      ctx.report({
+        message: `Magic number ${node.text} — extract it to a named constant.`,
+        severity: Severity.Info,
+        range: nodeRange(node),
+        data: { value: node.text }
+      });
+    }
   }
 };

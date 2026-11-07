@@ -7,7 +7,6 @@
 
 import {
   Severity,
-  capture,
   nodeRange,
   type Rule,
   type RuleContext,
@@ -15,7 +14,7 @@ import {
   type TextEdit
 } from '../types';
 
-const CONSOLE_METHODS = '^(log|warn|error|info|debug|trace)$';
+const CONSOLE_METHODS = /^(log|warn|error|info|debug|trace)$/;
 
 export const consoleLogRule: Rule = {
   id: 'IED-Q001',
@@ -36,20 +35,17 @@ export const consoleLogRule: Rule = {
     'Relaxed inside test files. Suppress with `// ied-disable-next-line IED-Q001`.'
   ].join('\n'),
 
+  nodeTypes: () => ['call_expression'],
+
   run(ctx: RuleContext): void {
     if (ctx.isTestFile) return;
-    const matches = ctx.query(`
-      (call_expression
-        function: (member_expression
-          object: (identifier) @obj
-          property: (property_identifier) @method)
-        (#eq? @obj "console")
-        (#match? @method "${CONSOLE_METHODS}")) @call
-    `);
-    for (const m of matches) {
-      const call = capture(m, 'call');
-      const method = capture(m, 'method');
-      if (!call || !method) continue;
+    for (const call of ctx.nodesOfType('call_expression')) {
+      const fn = call.childForFieldName('function');
+      if (!fn || fn.type !== 'member_expression') continue;
+      const obj = fn.childForFieldName('object');
+      if (!obj || obj.type !== 'identifier' || obj.text !== 'console') continue;
+      const method = fn.childForFieldName('property');
+      if (!method || method.type !== 'property_identifier' || !CONSOLE_METHODS.test(method.text)) continue;
       if (ctx.isSuppressed(call.startPosition.row, 'IED-Q001')) continue;
       ctx.report({
         message: `Remove console.${method.text} before shipping.`,
@@ -59,6 +55,8 @@ export const consoleLogRule: Rule = {
       });
     }
   },
+
+  fixTitle: (d) => `Remove console.${String(d.data?.method ?? 'log')}(…) call`,
 
   fix(diagnostic: Diagnostic, sourceCode: string): TextEdit[] | null {
     // Remove the full line(s) the call spans, including a trailing newline.

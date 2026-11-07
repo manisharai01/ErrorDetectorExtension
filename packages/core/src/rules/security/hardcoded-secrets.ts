@@ -3,12 +3,13 @@
  *
  * Detects API keys, tokens, and private keys committed to source. Ported from
  * the legacy `security/hardcoded-secrets` rule. Instead of scanning raw lines,
- * this version inspects `(string)` and `(template_string)` literal nodes from
- * the Tree-sitter tree and tests their text against a set of well-known secret
+ * this version inspects the language's string-literal nodes (from the shared
+ * node index) and tests their text against a set of well-known secret
  * patterns. Reports on the literal node. Not auto-fixable.
  */
 
 import {
+  ALL_LANGUAGES,
   Severity,
   nodeRange,
   type Rule,
@@ -43,7 +44,7 @@ export const hardcodedSecretsRule: Rule = {
   name: 'hardcoded-secrets',
   category: 'security',
   severity: Severity.Error,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin', 'swift', 'c', 'cpp', 'php', 'csharp', 'ruby'],
+  languages: ALL_LANGUAGES,
   description: 'API keys, tokens, or private keys hardcoded in source.',
   docs: [
     '# hardcoded-secrets (IED-S001)',
@@ -56,11 +57,12 @@ export const hardcodedSecretsRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: (language) => profileFor(language).stringNodes,
+
   run(ctx: RuleContext): void {
     const seen = new Set<string>();
 
-    const inspect = (node: TSNode | undefined): void => {
-      if (!node) return;
+    const inspect = (node: TSNode): void => {
       const text = node.text;
       for (const p of PATTERNS) {
         if (!p.re.test(text)) continue;
@@ -81,19 +83,14 @@ export const hardcodedSecretsRule: Rule = {
     };
 
     // String-literal node types differ per grammar (JS `string`/`template_string`,
-    // Python `string`, Go `interpreted_string_literal`/`raw_string_literal`), so
-    // walk the tree and match against the language's string node types.
-    const stringNodes = new Set(profileFor(ctx.language).stringNodes);
-    const walk = (node: TSNode): void => {
-      if (stringNodes.has(node.type)) {
-        inspect(node);
-        return; // don't descend into string-internal nodes (interpolation, etc.)
-      }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-    walk(ctx.tree.rootNode);
+    // Python `string`, Go `interpreted_string_literal`/`raw_string_literal`).
+    // A string nested inside another (e.g. inside a template interpolation) is
+    // already covered by the outer literal's text, so it is skipped.
+    let outerEnd = -1;
+    for (const node of ctx.nodesOfType(profileFor(ctx.language).stringNodes)) {
+      if (node.startIndex < outerEnd) continue;
+      outerEnd = node.endIndex;
+      inspect(node);
+    }
   }
 };

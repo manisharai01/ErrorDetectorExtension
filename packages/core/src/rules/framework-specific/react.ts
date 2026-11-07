@@ -38,15 +38,6 @@ const MUTATING_METHODS = new Set([
   'reverse'
 ]);
 
-/** Walk every descendant of `root`, calling `fn` on each node. */
-function walkAll(root: TSNode, fn: (n: TSNode) => void): void {
-  fn(root);
-  for (let i = 0; i < root.childCount; i++) {
-    const child = root.child(i);
-    if (child) walkAll(child, fn);
-  }
-}
-
 /**
  * For a call_expression, return the callee's simple name:
  *  - `foo(...)`        -> "foo"
@@ -93,9 +84,10 @@ export const hookDepsRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['call_expression'],
+
   run(ctx: RuleContext): void {
-    walkAll(ctx.tree.rootNode, (n) => {
-      if (n.type !== 'call_expression') return;
+    ctx.nodesOfType('call_expression').forEach((n) => {
       const name = calleeName(n);
       if (!name || !HOOKS_WITH_DEPS.has(name)) return;
       // Missing dependency array == fewer than 2 arguments (callback only).
@@ -169,9 +161,10 @@ export const missingKeyRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['call_expression'],
+
   run(ctx: RuleContext): void {
-    walkAll(ctx.tree.rootNode, (n) => {
-      if (n.type !== 'call_expression') return;
+    ctx.nodesOfType('call_expression').forEach((n) => {
       const fn = n.childForFieldName('function');
       if (!fn || fn.type !== 'member_expression') return;
       const prop = fn.childForFieldName('property');
@@ -208,10 +201,9 @@ export const missingKeyRule: Rule = {
  * Collect the first element name of every `const [x, setX] = useState(...)`.
  * Returns the set of state value identifiers (the `x`).
  */
-function collectStateVars(root: TSNode): Set<string> {
+function collectStateVars(ctx: RuleContext): Set<string> {
   const stateVars = new Set<string>();
-  walkAll(root, (n) => {
-    if (n.type !== 'variable_declarator') return;
+  ctx.nodesOfType('variable_declarator').forEach((n) => {
     const nameNode = n.childForFieldName('name');
     const value = n.childForFieldName('value');
     if (!nameNode || nameNode.type !== 'array_pattern') return;
@@ -257,11 +249,13 @@ export const stateMutationRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['variable_declarator', 'call_expression', 'assignment_expression'],
+
   run(ctx: RuleContext): void {
-    const stateVars = collectStateVars(ctx.tree.rootNode);
+    const stateVars = collectStateVars(ctx);
     if (stateVars.size === 0) return;
 
-    walkAll(ctx.tree.rootNode, (n) => {
+    ctx.nodesOfType(['call_expression', 'assignment_expression']).forEach((n) => {
       // (a) Mutating method call: x.push(...) / x.sort(...) etc.
       if (n.type === 'call_expression') {
         const fn = n.childForFieldName('function');
@@ -360,14 +354,15 @@ export const stateAfterUnmountRule: Rule = {
     'Suppressed when the file already references `isMounted` / `AbortController`.'
   ].join('\n'),
 
+  nodeTypes: () => ['call_expression'],
+
   run(ctx: RuleContext): void {
     // If the file already uses a guard, stay quiet — too noisy otherwise.
     if (/\b(isMounted|abortController|AbortController)\b/.test(ctx.sourceCode)) {
       return;
     }
 
-    walkAll(ctx.tree.rootNode, (n) => {
-      if (n.type !== 'call_expression') return;
+    ctx.nodesOfType('call_expression').forEach((n) => {
       const fn = n.childForFieldName('function');
       // Only bare `setX(...)` calls (state setters), not member calls.
       if (!fn || fn.type !== 'identifier') return;

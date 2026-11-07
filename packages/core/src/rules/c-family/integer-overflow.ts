@@ -85,13 +85,10 @@ export const integerOverflowRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['call_expression'],
+
   run(ctx: RuleContext): void {
-    const matches = ctx.query('(call_expression) @call');
-
-    for (const m of matches) {
-      const call = m.captures.find((c) => c.name === 'call')?.node;
-      if (!call) continue;
-
+    for (const call of ctx.nodesOfType('call_expression')) {
       const name = calleeName(call);
       if (!name || !ALLOCATORS.has(name)) continue;
 

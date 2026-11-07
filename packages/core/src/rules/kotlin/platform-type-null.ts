@@ -104,8 +104,10 @@ export const platformTypeNullRule: Rule = {
     'nullability before changing code.'
   ].join('\n'),
 
+  nodeTypes: () => ['navigation_expression'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('navigation_expression')) {
       if (node.type === 'navigation_expression') {
         const operand = node.child(0);
         if (operand && operand.type === 'call_expression' && usesPlainDot(node)) {
@@ -131,12 +133,6 @@ export const platformTypeNullRule: Rule = {
           }
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

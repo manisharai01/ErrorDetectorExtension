@@ -9,7 +9,6 @@
 
 import {
   Severity,
-  capture,
   nodeRange,
   type Rule,
   type RuleContext,
@@ -48,13 +47,10 @@ export const commandInjectionRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['call_expression'],
+
   run(ctx: RuleContext): void {
-    const matches = ctx.query('(call_expression) @call');
-
-    for (const m of matches) {
-      const call = capture(m, 'call');
-      if (!call) continue;
-
+    for (const call of ctx.nodesOfType('call_expression')) {
       const fn = call.childForFieldName('function');
       if (!fn) continue;
 

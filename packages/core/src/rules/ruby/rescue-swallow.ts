@@ -19,7 +19,6 @@
 import {
   Severity,
   nodeRange,
-  capture,
   type Rule,
   type RuleContext,
   type TSNode
@@ -53,25 +52,17 @@ export const rescueSwallowRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['rescue'],
+
   run(ctx: RuleContext): void {
     // The executable body of a rescue is a `then` child; header parts
     // (`exceptions`, `exception_variable`) and `comment` nodes are not a body.
-    // We use queries rather than a manual walk because rescue node handles read
-    // inconsistently through the shared traversal cursor. A rescue with a `then`
-    // body is safe; every other rescue swallows the exception.
-    //
-    // We key by start position to subtract the "has body" set from all rescues.
-    const key = (n: TSNode): string => `${n.startPosition.row}:${n.startPosition.column}`;
-
-    const withBody = new Set<string>();
-    for (const m of ctx.query('(rescue body: (then)) @r')) {
-      const r = capture(m, 'r');
-      if (r) withBody.add(key(r));
-    }
-
-    for (const m of ctx.query('(rescue) @r')) {
-      const r = capture(m, 'r');
-      if (!r || withBody.has(key(r))) continue;
+    // The rescues come from the shared node index (materialised by one native
+    // traversal), so their field handles are reliable — unlike nodes reached by
+    // a hand-written child walk. A rescue with a `then` body is safe; every
+    // other rescue swallows the exception.
+    for (const r of ctx.nodesOfType('rescue')) {
+      if (r.childForFieldName('body')?.type === 'then') continue;
       const row = r.startPosition.row;
       if (ctx.isSuppressed(row, 'IED-L020')) continue;
       ctx.report({

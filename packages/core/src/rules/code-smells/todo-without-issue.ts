@@ -2,15 +2,15 @@
  * IED-Q005 — todo-without-issue
  *
  * Flags TODO/FIXME/HACK/XXX comments that lack an issue tracker reference such
- * as `#123` or `JIRA-456`. Walks the tree for `comment` nodes.
+ * as `#123` or `JIRA-456`. Reads the language's comment nodes from the index.
  */
 
 import {
+  ALL_LANGUAGES,
   Severity,
   nodeRange,
   type Rule,
-  type RuleContext,
-  type TSNode
+  type RuleContext
 } from '../types';
 import { profileFor } from '../../engine/grammar-profile';
 
@@ -23,7 +23,7 @@ export const todoWithoutIssueRule: Rule = {
   name: 'todo-without-issue',
   category: 'quality',
   severity: Severity.Info,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin', 'swift', 'c', 'cpp', 'php', 'csharp', 'ruby'],
+  languages: ALL_LANGUAGES,
   description: 'TODO/FIXME comment without an issue tracker reference.',
   docs: [
     '# todo-without-issue (IED-Q005)',
@@ -37,28 +37,20 @@ export const todoWithoutIssueRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: (language) => profileFor(language).commentNodes,
+
   run(ctx: RuleContext): void {
-    const commentNodes = new Set(profileFor(ctx.language).commentNodes);
-    const walk = (node: TSNode): void => {
-      if (commentNodes.has(node.type)) {
-        const text = node.text;
-        if (MARKER.test(text) && !ISSUE_REF.test(text)) {
-          if (!ctx.isSuppressed(node.startPosition.row, 'IED-Q005')) {
-            const marker = MARKER.exec(text)?.[1] ?? 'TODO';
-            ctx.report({
-              message: `${marker} comment without an issue reference (e.g. #123 or ABC-123).`,
-              severity: Severity.Info,
-              range: nodeRange(node),
-              data: { marker }
-            });
-          }
-        }
-      }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-    walk(ctx.tree.rootNode);
+    for (const node of ctx.nodesOfType(profileFor(ctx.language).commentNodes)) {
+      const text = node.text;
+      if (!MARKER.test(text) || ISSUE_REF.test(text)) continue;
+      if (ctx.isSuppressed(node.startPosition.row, 'IED-Q005')) continue;
+      const marker = MARKER.exec(text)?.[1] ?? 'TODO';
+      ctx.report({
+        message: `${marker} comment without an issue reference (e.g. #123 or ABC-123).`,
+        severity: Severity.Info,
+        range: nodeRange(node),
+        data: { marker }
+      });
+    }
   }
 };

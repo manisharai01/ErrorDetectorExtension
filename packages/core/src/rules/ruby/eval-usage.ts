@@ -60,8 +60,10 @@ export const evalUsageRubyRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['call'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('call')) {
       if (node.type === 'call') {
         const method = node.childForFieldName('method');
         if (method && EVAL_METHODS.has(method.text)) {
@@ -82,12 +84,6 @@ export const evalUsageRubyRule: Rule = {
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

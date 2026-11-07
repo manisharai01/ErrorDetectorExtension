@@ -73,8 +73,10 @@ export const resourceNotClosedRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['object_creation_expression'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('object_creation_expression')) {
       if (node.type === 'object_creation_expression') {
         const typeNode = node.childForFieldName('type');
         const typeName = typeNode?.text;
@@ -100,12 +102,6 @@ export const resourceNotClosedRule: Rule = {
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

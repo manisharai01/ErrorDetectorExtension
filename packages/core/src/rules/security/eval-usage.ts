@@ -8,7 +8,6 @@
 
 import {
   Severity,
-  capture,
   nodeRange,
   type Rule,
   type RuleContext,
@@ -34,6 +33,8 @@ export const evalUsageRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['call_expression', 'new_expression'],
+
   run(ctx: RuleContext): void {
     const reported = new Set<TSNode>();
 
@@ -50,25 +51,19 @@ export const evalUsageRule: Rule = {
     };
 
     // eval(...)
-    const calls = ctx.query(`
-      (call_expression
-        function: (identifier) @fn
-        (#eq? @fn "eval")) @call
-    `);
-    for (const m of calls) {
-      const node = capture(m, 'call');
-      if (node) flag(node, 'Avoid eval() — it executes arbitrary code.');
+    for (const node of ctx.nodesOfType('call_expression')) {
+      const fn = node.childForFieldName('function');
+      if (fn && fn.type === 'identifier' && fn.text === 'eval') {
+        flag(node, 'Avoid eval() — it executes arbitrary code.');
+      }
     }
 
     // new Function(...)
-    const news = ctx.query(`
-      (new_expression
-        constructor: (identifier) @ctor
-        (#eq? @ctor "Function")) @new
-    `);
-    for (const m of news) {
-      const node = capture(m, 'new');
-      if (node) flag(node, 'Avoid new Function(...) — it is equivalent to eval().');
+    for (const node of ctx.nodesOfType('new_expression')) {
+      const ctor = node.childForFieldName('constructor');
+      if (ctor && ctor.type === 'identifier' && ctor.text === 'Function') {
+        flag(node, 'Avoid new Function(...) — it is equivalent to eval().');
+      }
     }
   }
 };

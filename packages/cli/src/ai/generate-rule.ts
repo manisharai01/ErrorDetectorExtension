@@ -85,7 +85,7 @@ export async function generateRule(client: AiClient, input: GenerateRuleInput): 
   const { text } = await client.complete({
     system: SYSTEM,
     user: buildGeneratePrompt(input),
-    maxTokens: 2048
+    maxTokens: 16000
   });
   return parseGeneratedRule(text);
 }

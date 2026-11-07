@@ -45,8 +45,10 @@ export const deferInLoopRule: Rule = {
     'Move the work into a helper function, or close explicitly inside the loop.'
   ].join('\n'),
 
+  nodeTypes: () => ['defer_statement'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('defer_statement')) {
       if (node.type === 'defer_statement') {
         // Walk up: a for_statement before any function boundary means in-loop.
         let cur: TSNode | null = node.parent;
@@ -67,12 +69,6 @@ export const deferInLoopRule: Rule = {
           cur = cur.parent;
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

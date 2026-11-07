@@ -9,8 +9,8 @@
  *
  * Conservative: we only flag when the SAME left-hand identifier name is the
  * target of two or more await-bearing assignments within one async function
- * body. Walk-based and two-pass per function: collect awaited writes, then
- * report identifiers written twice.
+ * body. One pass over the indexed functions + assignments collects each async
+ * function's awaited writes, then identifiers written twice are reported.
  */
 
 import {
@@ -20,6 +20,7 @@ import {
   type RuleContext,
   type TSNode
 } from '../types';
+import { EnclosingStack, spanOf } from '../util';
 
 const FUNCTION_TYPES = new Set([
   'function_declaration',
@@ -34,15 +35,12 @@ const ASSIGN_TYPES = new Set(['assignment_expression', 'augmented_assignment_exp
 
 /** True if this function-like node carries the `async` keyword. */
 function isAsyncFunction(node: TSNode): boolean {
-  if (!FUNCTION_TYPES.has(node.type)) return false;
   // The `async` keyword appears as an anonymous child token before the params.
   for (let i = 0; i < node.childCount; i++) {
     const c = node.child(i);
     if (c && c.type === 'async') return true;
   }
-  // Some grammars surface it via text on the leading tokens; fall back to a
-  // cheap source check on the node's first line as a safety net.
-  return /\basync\b/.test(node.text.slice(0, node.text.indexOf('(') + 1 || 0));
+  return false;
 }
 
 /** Does this subtree contain an `await_expression` (without crossing into a
@@ -102,48 +100,39 @@ export const raceConditionRule: Rule = {
     'Heuristic and conservative. Suppress with `// ied-disable-next-line IED-C001`.'
   ].join('\n'),
 
+  nodeTypes: () => [...FUNCTION_TYPES, ...ASSIGN_TYPES],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
-      if (isAsyncFunction(node)) {
-        checkAsyncFunction(ctx, node);
+    // Each assignment belongs to its innermost enclosing function; only async
+    // functions collect awaited writes. Reported per function, in function order.
+    const asyncFunctions: Array<Map<string, TSNode[]>> = [];
+    const scopes = new EnclosingStack<Map<string, TSNode[]> | null>();
+
+    for (const node of ctx.nodesOfType([...FUNCTION_TYPES, ...ASSIGN_TYPES])) {
+      scopes.at(spanOf(node));
+      if (FUNCTION_TYPES.has(node.type)) {
+        // name -> assignment nodes that involve an await, in source order.
+        const writes = isAsyncFunction(node) ? new Map<string, TSNode[]>() : null;
+        if (writes) asyncFunctions.push(writes);
+        scopes.push(spanOf(node), writes);
+        continue;
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-    walk(ctx.tree.rootNode);
+      const writes = scopes.innermost();
+      if (!writes) continue;
+      const right = node.childForFieldName('right');
+      if (!right || !containsAwait(right)) continue;
+      const name = assignTargetName(node);
+      if (!name) continue;
+      const list = writes.get(name);
+      if (list) list.push(node);
+      else writes.set(name, [node]);
+    }
+
+    for (const writes of asyncFunctions) reportRaces(ctx, writes);
   }
 };
 
-function checkAsyncFunction(ctx: RuleContext, fn: TSNode): void {
-  // name -> list of assignment nodes that involve an await, in source order.
-  const awaitedWrites = new Map<string, TSNode[]>();
-
-  const collect = (node: TSNode, scopeRoot: TSNode): void => {
-    // Don't descend into nested functions; they get their own analysis pass.
-    if (node !== scopeRoot && FUNCTION_TYPES.has(node.type)) return;
-
-    if (ASSIGN_TYPES.has(node.type)) {
-      const right = node.childForFieldName('right');
-      if (right && containsAwait(right)) {
-        const name = assignTargetName(node);
-        if (name) {
-          const list = awaitedWrites.get(name);
-          if (list) list.push(node);
-          else awaitedWrites.set(name, [node]);
-        }
-      }
-    }
-
-    for (let i = 0; i < node.childCount; i++) {
-      const child = node.child(i);
-      if (child) collect(child, scopeRoot);
-    }
-  };
-
-  collect(fn, fn);
-
+function reportRaces(ctx: RuleContext, awaitedWrites: Map<string, TSNode[]>): void {
   for (const [name, list] of awaitedWrites) {
     if (list.length >= 2) {
       const first = list[0];

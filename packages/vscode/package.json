@@ -1,7 +1,7 @@
 {
   "name": "invisible-errors-detector",
   "displayName": "Invisible Errors Detector",
-  "description": "Static analysis tool that finds bugs traditional linters miss (logic, security, code smells, framework patterns).",
+  "description": "Finds the bugs traditional linters miss — logic errors, security holes, resource leaks and concurrency bugs — in JS/TS/Vue, Python, Go, Rust, Java, Kotlin, Swift, C/C++, PHP, C#, Ruby and Dart.",
   "version": "0.1.0",
   "publisher": "invisible-errors",
   "engines": {
@@ -17,18 +17,41 @@
     "static-analysis",
     "bugs",
     "security",
+    "code-quality",
     "react",
     "vue",
-    "typescript"
+    "typescript",
+    "python",
+    "go",
+    "rust",
+    "java",
+    "kotlin",
+    "swift",
+    "dart",
+    "flutter",
+    "csharp",
+    "php",
+    "ruby"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onLanguage:javascript",
     "onLanguage:javascriptreact",
     "onLanguage:typescript",
     "onLanguage:typescriptreact",
     "onLanguage:vue",
     "onLanguage:python",
-    "onLanguage:go"
+    "onLanguage:go",
+    "onLanguage:rust",
+    "onLanguage:java",
+    "onLanguage:kotlin",
+    "onLanguage:swift",
+    "onLanguage:c",
+    "onLanguage:cpp",
+    "onLanguage:php",
+    "onLanguage:csharp",
+    "onLanguage:ruby",
+    "onLanguage:dart"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -36,6 +59,10 @@
       {
         "command": "invisibleErrors.analyzeWorkspace",
         "title": "Invisible Errors: Analyze Workspace"
+      },
+      {
+        "command": "invisibleErrors.checkProject",
+        "title": "Invisible Errors: Check Project (import cycles, broken imports, duplicates, unused exports)"
       },
       {
         "command": "invisibleErrors.analyzeFile",
@@ -164,14 +191,22 @@
           "command": "invisibleErrors.showDashboard",
           "when": "view == invisibleErrors.issues",
           "group": "navigation"
+        },
+        {
+          "command": "invisibleErrors.checkProject",
+          "when": "view == invisibleErrors.issues",
+          "group": "navigation"
         }
       ]
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run build",
+    "vscode:prepublish": "npm run bundle",
     "build": "tsc -b",
-    "watch": "tsc -b --watch"
+    "watch": "tsc -b --watch",
+    "bundle": "node scripts/bundle.js",
+    "package": "vsce package --no-dependencies --skip-license --allow-missing-repository",
+    "test": "node test/languages.test.cjs"
   },
   "dependencies": {
     "@ied/core": "*",
@@ -180,6 +215,8 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.24.2",
     "typescript": "^5.4.0"
   }
 }

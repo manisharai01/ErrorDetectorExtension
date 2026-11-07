@@ -6,17 +6,15 @@
  *   - `for (...; i <= arr.length; ...)` — iterates one past the end.
  *
  * Ported from the legacy `logic/array-index` rule (TypeScript compiler API) to
- * Tree-sitter. The "same identifier on both sides" check is done by comparing
- * node text in JS, since cross-capture query equality is unreliable.
+ * Tree-sitter. Reads subscript expressions and for-loops from the shared node
+ * index; the "same identifier on both sides" check compares node text.
  */
 
 import {
   Severity,
-  capture,
   nodeRange,
   type Rule,
-  type RuleContext,
-  type TSNode
+  type RuleContext
 } from '../types';
 
 export const arrayIndexRule: Rule = {
@@ -40,23 +38,20 @@ export const arrayIndexRule: Rule = {
     'when iterating up to a length.'
   ].join('\n'),
 
+  nodeTypes: () => ['subscript_expression', 'for_statement'],
+
   run(ctx: RuleContext): void {
     // --- Pattern 1: arr[arr.length] ---
     // subscript_expression { object: identifier X, index: member_expression { object: identifier X, property: "length" } }
-    const subscriptMatches = ctx.query(`
-      (subscript_expression
-        object: (identifier) @arr
-        index: (member_expression
-          object: (identifier) @arr2
-          property: (property_identifier) @prop)) @subscript
-    `);
-    for (const m of subscriptMatches) {
-      const subscript = capture(m, 'subscript');
-      const arr = capture(m, 'arr');
-      const arr2 = capture(m, 'arr2');
-      const prop = capture(m, 'prop');
-      if (!subscript || !arr || !arr2 || !prop) continue;
-      if (prop.text !== 'length') continue;
+    for (const subscript of ctx.nodesOfType('subscript_expression')) {
+      const arr = subscript.childForFieldName('object');
+      if (!arr || arr.type !== 'identifier') continue;
+      const index = subscript.childForFieldName('index');
+      if (!index || index.type !== 'member_expression') continue;
+      const arr2 = index.childForFieldName('object');
+      const prop = index.childForFieldName('property');
+      if (!arr2 || arr2.type !== 'identifier') continue;
+      if (!prop || prop.type !== 'property_identifier' || prop.text !== 'length') continue;
       // Cross-capture equality: same identifier on both sides.
       if (arr.text !== arr2.text) continue;
       if (ctx.isSuppressed(subscript.startPosition.row, 'IED-L001')) continue;
@@ -71,21 +66,17 @@ export const arrayIndexRule: Rule = {
     // --- Pattern 2: for (...; i <= arr.length; ...) ---
     // The for_statement's `condition` field wraps the test in an
     // expression_statement, which contains the binary_expression.
-    const forMatches = ctx.query(`
-      (for_statement
-        condition: (expression_statement
-          (binary_expression
-            operator: _ @op
-            right: (member_expression
-              property: (property_identifier) @prop)) @cond)) @for
-    `);
-    for (const m of forMatches) {
-      const cond = capture(m, 'cond');
-      const op = capture(m, 'op');
-      const prop = capture(m, 'prop');
-      if (!cond || !op || !prop) continue;
-      if (op.text !== '<=') continue;
-      if (prop.text !== 'length') continue;
+    for (const loop of ctx.nodesOfType('for_statement')) {
+      const condition = loop.childForFieldName('condition');
+      if (!condition || condition.type !== 'expression_statement') continue;
+      const cond = condition.namedChild(0);
+      if (!cond || cond.type !== 'binary_expression') continue;
+      const op = cond.childForFieldName('operator');
+      if (!op || op.text !== '<=') continue;
+      const right = cond.childForFieldName('right');
+      if (!right || right.type !== 'member_expression') continue;
+      const prop = right.childForFieldName('property');
+      if (!prop || prop.type !== 'property_identifier' || prop.text !== 'length') continue;
       if (ctx.isSuppressed(cond.startPosition.row, 'IED-L001')) continue;
       ctx.report({
         message: 'Loop bound uses `<= .length` which iterates one past the end (off-by-one).',

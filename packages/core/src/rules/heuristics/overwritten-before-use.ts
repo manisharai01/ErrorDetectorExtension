@@ -26,14 +26,7 @@ import {
 function identifiersIn(node: TSNode | null): Set<string> {
   const out = new Set<string>();
   if (!node) return out;
-  const walk = (n: TSNode): void => {
-    if (n.type === 'identifier') out.add(n.text);
-    for (let i = 0; i < n.childCount; i++) {
-      const c = n.child(i);
-      if (c) walk(c);
-    }
-  };
-  walk(node);
+  for (const id of node.descendantsOfType('identifier')) out.add(id.text);
   return out;
 }
 
@@ -99,6 +92,8 @@ export const overwrittenBeforeUseRule: Rule = {
     'means the first assignment was wasted — often a sign of a logic mistake.'
   ].join('\n'),
 
+  nodeTypes: () => ['statement_block'],
+
   run(ctx: RuleContext): void {
     const scan = (block: TSNode): void => {
       // target -> pending write not yet read
@@ -127,14 +122,6 @@ export const overwrittenBeforeUseRule: Rule = {
       }
     };
 
-    const walk = (node: TSNode): void => {
-      if (node.type === 'statement_block') scan(node);
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    for (const block of ctx.nodesOfType('statement_block')) scan(block);
   }
 };

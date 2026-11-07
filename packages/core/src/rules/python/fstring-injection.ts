@@ -57,6 +57,8 @@ export const fstringInjectionRule: Rule = {
     'Use parameterized queries: `cursor.execute("... WHERE id = %s", (user_id,))`.'
   ].join('\n'),
 
+  nodeTypes: () => ['call', 'assignment'],
+
   run(ctx: RuleContext): void {
     const report = (str: TSNode, where: string): void => {
       if (ctx.isSuppressed(str.startPosition.row, 'IED-S012')) return;
@@ -68,7 +70,7 @@ export const fstringInjectionRule: Rule = {
       });
     };
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType(['call', 'assignment'])) {
       // Sink 1: passed as an argument to a SQL execution call.
       if (node.type === 'call' && SQL_METHODS.test(calleeName(node) ?? '')) {
         const args = node.childForFieldName('arguments');
@@ -87,11 +89,6 @@ export const fstringInjectionRule: Rule = {
           report(right, `the SQL variable \`${left.text}\``);
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const c = node.child(i);
-        if (c) walk(c);
-      }
-    };
-    walk(ctx.tree.rootNode);
+    }
   }
 };

@@ -65,8 +65,10 @@ export const uncheckedErrorRule: Rule = {
     'Handle the error: `if err != nil { ... }`.'
   ].join('\n'),
 
+  nodeTypes: () => ['short_var_declaration', 'expression_statement'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType(['short_var_declaration', 'expression_statement'])) {
       // Case (a): short_var_declaration with `_` on the left and a call on the right.
       if (node.type === 'short_var_declaration') {
         const left = node.childForFieldName('left');
@@ -115,12 +117,6 @@ export const uncheckedErrorRule: Rule = {
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

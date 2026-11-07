@@ -61,8 +61,10 @@ export const equalsWithoutHashCodeRule: Rule = {
     'Override `hashCode()` whenever you override `equals()`.'
   ].join('\n'),
 
+  nodeTypes: () => ['class_declaration'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('class_declaration')) {
       if (node.type === 'class_declaration') {
         const methods = methodsOf(node);
         const equalsMethod = methods.find((m) => methodName(m) === 'equals');
@@ -80,12 +82,6 @@ export const equalsWithoutHashCodeRule: Rule = {
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

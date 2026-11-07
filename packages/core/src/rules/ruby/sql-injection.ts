@@ -61,6 +61,8 @@ export const sqlInjectionRubyRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['call', 'assignment'],
+
   run(ctx: RuleContext): void {
     const seen = new Set<string>();
 
@@ -78,7 +80,7 @@ export const sqlInjectionRubyRule: Rule = {
       });
     };
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType(['call', 'assignment'])) {
       // DB method call: db.execute(<tainted>), User.where(<tainted>), etc.
       if (node.type === 'call') {
         const method = node.childForFieldName('method');
@@ -107,12 +109,6 @@ export const sqlInjectionRubyRule: Rule = {
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

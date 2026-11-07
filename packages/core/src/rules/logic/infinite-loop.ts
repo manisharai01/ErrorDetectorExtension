@@ -75,33 +75,21 @@ export const infiniteLoopRule: Rule = {
     'Add a termination condition or an exit statement.'
   ].join('\n'),
 
-  run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
-      let always = false;
-      let body: TSNode | null = null;
-      if (node.type === 'while_statement' && isWhileTrue(node)) {
-        always = true;
-        body = node.childForFieldName('body');
-      } else if (node.type === 'for_statement' && isForEver(node)) {
-        always = true;
-        body = node.childForFieldName('body');
-      }
-      if (always && body && !hasExit(body)) {
-        if (!ctx.isSuppressed(node.startPosition.row, 'IED-L005')) {
-          ctx.report({
-            message: 'Loop appears to run forever (no break/return/throw inside).',
-            severity: Severity.Warning,
-            range: nodeRange(node),
-            data: { loop: node.type }
-          });
-        }
-      }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
+  nodeTypes: () => ['while_statement', 'for_statement'],
 
-    walk(ctx.tree.rootNode);
+  run(ctx: RuleContext): void {
+    for (const node of ctx.nodesOfType(['while_statement', 'for_statement'])) {
+      const always = node.type === 'while_statement' ? isWhileTrue(node) : isForEver(node);
+      if (!always) continue;
+      const body = node.childForFieldName('body');
+      if (!body || hasExit(body)) continue;
+      if (ctx.isSuppressed(node.startPosition.row, 'IED-L005')) continue;
+      ctx.report({
+        message: 'Loop appears to run forever (no break/return/throw inside).',
+        severity: Severity.Warning,
+        range: nodeRange(node),
+        data: { loop: node.type }
+      });
+    }
   }
 };

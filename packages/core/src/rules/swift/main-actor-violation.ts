@@ -175,18 +175,14 @@ export const mainActorViolationRule: Rule = {
     'flagged. `DispatchQueue.main` closures are ignored.'
   ].join('\n'),
 
+  nodeTypes: () => ['call_expression'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('call_expression')) {
       if (node.type === 'call_expression' && isDispatchGlobalCall(node)) {
         const closure = trailingClosure(node);
         if (closure) reportUiAssignments(closure, ctx);
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

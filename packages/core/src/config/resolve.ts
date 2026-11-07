@@ -14,9 +14,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { Severity } from '../rules/types';
+import { SOURCE_EXTENSIONS } from '../engine/analyzer';
 import type { IEDConfig, ResolvedConfig, RuleSetting, ConfigSeverity } from './types';
 
-export const DEFAULT_INCLUDE = ['**/*.{js,jsx,ts,tsx,vue}'];
+export const DEFAULT_INCLUDE = [`**/*.{${SOURCE_EXTENSIONS.map((e) => e.slice(1)).join(',')}}`];
 export const DEFAULT_EXCLUDE = ['node_modules', 'dist', 'out', 'build', '.git'];
 
 const CONFIG_SEVERITY: Record<Exclude<ConfigSeverity, 'off'>, Severity> = {

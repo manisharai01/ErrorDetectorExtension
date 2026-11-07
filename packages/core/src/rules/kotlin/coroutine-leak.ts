@@ -76,8 +76,10 @@ export const coroutineLeakRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['call_expression'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('call_expression')) {
       if (node.type === 'call_expression') {
         const callee = node.child(0);
         if (callee && callee.type === 'navigation_expression') {
@@ -100,12 +102,6 @@ export const coroutineLeakRule: Rule = {
           }
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

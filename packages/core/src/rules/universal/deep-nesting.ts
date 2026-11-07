@@ -2,17 +2,17 @@
  * IED-Q004 — deep-nesting
  *
  * Flags statements nested deeper than `threshold` (default 4) control-flow
- * levels. This is a stateful, depth-tracking walk — Tree-sitter queries are
- * stateless and cannot count nesting, so we walk the tree manually using the
- * node cursor. This is the reference pattern for "walk, don't query" rules.
+ * levels. The nesting nodes come from the shared index in document order; a
+ * stack of the currently-open ones (by source span) gives each node's depth
+ * without walking the whole tree.
  */
 
 import {
+  ALL_LANGUAGES,
   Severity,
   nodeRange,
   type Rule,
-  type RuleContext,
-  type TSNode
+  type RuleContext
 } from '../types';
 import { profileFor } from '../../engine/grammar-profile';
 
@@ -23,7 +23,7 @@ export const deepNestingRule: Rule = {
   name: 'deep-nesting',
   category: 'quality',
   severity: Severity.Info,
-  languages: ['javascript', 'typescript', 'jsx', 'tsx', 'vue', 'python', 'go', 'rust', 'java', 'kotlin', 'swift', 'c', 'cpp', 'php', 'csharp', 'ruby'],
+  languages: ALL_LANGUAGES,
   description: 'Control-flow nesting deeper than the configured maximum.',
   docs: [
     '# deep-nesting (IED-Q004)',
@@ -32,30 +32,33 @@ export const deepNestingRule: Rule = {
     'configure with `{ "options": { "threshold": 5 } }`.'
   ].join('\n'),
 
+  nodeTypes: (language) => profileFor(language).nestingNodes,
+
   run(ctx: RuleContext): void {
     const threshold =
       typeof ctx.config.threshold === 'number' ? ctx.config.threshold : DEFAULT_THRESHOLD;
-    const nestingTypes = new Set(profileFor(ctx.language).nestingNodes);
 
-    const walk = (node: TSNode, depth: number): void => {
-      const isNesting = nestingTypes.has(node.type);
-      const next = isNesting ? depth + 1 : depth;
-      if (isNesting && next > threshold) {
-        if (!ctx.isSuppressed(node.startPosition.row, 'IED-Q004')) {
-          ctx.report({
-            message: `Nesting depth ${next} exceeds maximum of ${threshold}.`,
-            severity: Severity.Info,
-            range: nodeRange(node),
-            data: { depth: next, threshold }
-          });
-        }
+    // Spans of the nesting nodes that enclose the current one (pre-order, so an
+    // ancestor is always seen before its descendants).
+    const open: Array<{ start: number; end: number }> = [];
+    for (const node of ctx.nodesOfType(profileFor(ctx.language).nestingNodes)) {
+      const start = node.startIndex;
+      const end = node.endIndex;
+      while (open.length > 0) {
+        const top = open[open.length - 1];
+        if (top.start <= start && end <= top.end) break;
+        open.pop();
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child, next);
-      }
-    };
-
-    walk(ctx.tree.rootNode, 0);
+      open.push({ start, end });
+      const depth = open.length;
+      if (depth <= threshold) continue;
+      if (ctx.isSuppressed(node.startPosition.row, 'IED-Q004')) continue;
+      ctx.report({
+        message: `Nesting depth ${depth} exceeds maximum of ${threshold}.`,
+        severity: Severity.Info,
+        range: nodeRange(node),
+        data: { depth, threshold }
+      });
+    }
   }
 };

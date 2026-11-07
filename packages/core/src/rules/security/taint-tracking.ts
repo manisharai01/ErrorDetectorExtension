@@ -43,22 +43,11 @@ interface TaintInfo {
   description: string;
 }
 
-/** Depth-first walk applying `fn` to every node. */
-function walk(node: TSNode, fn: (n: TSNode) => void): void {
-  fn(node);
-  for (let i = 0; i < node.childCount; i++) {
-    const child = node.child(i);
-    if (child) walk(child, fn);
-  }
-}
+const SINK_TYPES = ['call_expression', 'new_expression', 'assignment_expression'];
 
-/** All identifier names referenced anywhere inside `node`. */
+/** All identifier names referenced anywhere inside `node` (including itself). */
 function identifiersIn(node: TSNode): string[] {
-  const out: string[] = [];
-  walk(node, (n) => {
-    if (n.type === 'identifier') out.push(n.text);
-  });
-  return out;
+  return node.descendantsOfType('identifier').map((n) => n.text);
 }
 
 export const taintTrackingRule: Rule = {
@@ -82,48 +71,45 @@ export const taintTrackingRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['variable_declarator', ...SINK_TYPES],
+
   run(ctx: RuleContext): void {
     const tainted = new Map<string, TaintInfo>();
-    const root = ctx.tree.rootNode;
 
-    // 1. Seed taint from variable declarators whose initializer mentions a source.
-    walk(root, (n) => {
-      if (n.type !== 'variable_declarator') return;
+    // Simple `name = value` declarators, read once.
+    const declarators: Array<{ node: TSNode; name: string; value: TSNode }> = [];
+    for (const n of ctx.nodesOfType('variable_declarator')) {
       const nameNode = n.childForFieldName('name');
       const valueNode = n.childForFieldName('value');
-      if (!nameNode || nameNode.type !== 'identifier' || !valueNode) return;
-      if (SOURCE_RE.test(valueNode.text)) {
-        tainted.set(nameNode.text, {
-          row: n.startPosition.row,
-          description: `value from "${valueNode.text}"`
-        });
+      if (!nameNode || nameNode.type !== 'identifier' || !valueNode) continue;
+      declarators.push({ node: n, name: nameNode.text, value: valueNode });
+    }
+
+    // 1. Seed taint from variable declarators whose initializer mentions a source.
+    for (const d of declarators) {
+      const text = d.value.text;
+      if (SOURCE_RE.test(text)) {
+        tainted.set(d.name, { row: d.node.startPosition.row, description: `value from "${text}"` });
       }
-    });
+    }
+    if (tainted.size === 0) return;
 
     // 2. Propagate one-hop: const y = <expr referencing a tainted id>.
     let changed = true;
     while (changed) {
       changed = false;
-      walk(root, (n) => {
-        if (n.type !== 'variable_declarator') return;
-        const nameNode = n.childForFieldName('name');
-        const valueNode = n.childForFieldName('value');
-        if (!nameNode || nameNode.type !== 'identifier' || !valueNode) return;
-        if (tainted.has(nameNode.text)) return;
-        for (const id of identifiersIn(valueNode)) {
-          if (tainted.has(id)) {
-            tainted.set(nameNode.text, {
-              row: n.startPosition.row,
-              description: `derived from tainted "${id}"`
-            });
-            changed = true;
-            return;
-          }
+      for (const d of declarators) {
+        if (tainted.has(d.name)) continue;
+        const id = identifiersIn(d.value).find((i) => tainted.has(i));
+        if (id) {
+          tainted.set(d.name, {
+            row: d.node.startPosition.row,
+            description: `derived from tainted "${id}"`
+          });
+          changed = true;
         }
-      });
+      }
     }
-
-    if (tainted.size === 0) return;
 
     const reported = new Set<TSNode>();
 
@@ -166,8 +152,8 @@ export const taintTrackingRule: Rule = {
       });
     };
 
-    // 3. Walk sinks.
-    walk(root, (n) => {
+    // 3. Check sinks.
+    for (const n of ctx.nodesOfType(SINK_TYPES)) {
       // eval(x)
       if (n.type === 'call_expression') {
         const fn = n.childForFieldName('function');
@@ -212,6 +198,6 @@ export const taintTrackingRule: Rule = {
           }
         }
       }
-    });
+    }
   }
 };

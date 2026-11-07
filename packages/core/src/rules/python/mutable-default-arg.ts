@@ -9,7 +9,6 @@
 
 import {
   Severity,
-  capture,
   nodeRange,
   type Rule,
   type RuleContext
@@ -38,16 +37,12 @@ export const mutableDefaultArgRule: Rule = {
     'Use `None` as the sentinel and create the value inside the body instead.'
   ].join('\n'),
 
+  nodeTypes: () => ['default_parameter'],
+
   run(ctx: RuleContext): void {
-    const matches = ctx.query(`
-      (default_parameter
-        value: [(list) (dictionary) (set)] @value) @param
-    `);
-    for (const m of matches) {
-      const param = capture(m, 'param');
-      const value = capture(m, 'value');
-      if (!param || !value) continue;
-      if (!MUTABLE_LITERALS.has(value.type)) continue;
+    for (const param of ctx.nodesOfType('default_parameter')) {
+      const value = param.childForFieldName('value');
+      if (!value || !MUTABLE_LITERALS.has(value.type)) continue;
       if (ctx.isSuppressed(param.startPosition.row, 'IED-L011')) continue;
       ctx.report({
         message: `Mutable default \`${value.type === 'dictionary' ? '{}' : value.type === 'set' ? '{...}' : '[]'}\` is shared across calls. Use None and build it in the body.`,

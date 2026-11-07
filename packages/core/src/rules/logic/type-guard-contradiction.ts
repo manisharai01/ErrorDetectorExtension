@@ -91,47 +91,44 @@ export const typeGuardContradictionRule: Rule = {
     'Did you mean `||`, or are you checking the wrong variable?'
   ].join('\n'),
 
-  run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
-      if (node.type === 'binary_expression') {
-        const op = node.childForFieldName('operator');
-        // Only consider the top of an && chain (parent is not itself an && bin-expr).
-        const parent = node.parent;
-        const parentIsAnd =
-          parent &&
-          parent.type === 'binary_expression' &&
-          parent.childForFieldName('operator')?.text === '&&';
-        if (op && op.text === '&&' && !parentIsAnd) {
-          const checks: TypeofCheck[] = [];
-          collectTypeofChecks(node, checks);
-          // Group literals by variable; >1 distinct literal for one variable = contradiction.
-          const byVar = new Map<string, Set<string>>();
-          for (const c of checks) {
-            const set = byVar.get(c.variable) ?? new Set<string>();
-            set.add(c.literal);
-            byVar.set(c.variable, set);
-          }
-          for (const [v, lits] of byVar) {
-            if (lits.size > 1) {
-              if (!ctx.isSuppressed(node.startPosition.row, 'IED-L007')) {
-                ctx.report({
-                  message: `"${v}" is checked against multiple typeof values (${[...lits].join(', ')}) joined by &&; this is always false.`,
-                  severity: Severity.Warning,
-                  range: nodeRange(node),
-                  data: { variable: v, literals: [...lits] }
-                });
-              }
-              break;
-            }
-          }
-        }
-      }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
+  nodeTypes: () => ['binary_expression', 'unary_expression'],
 
-    walk(ctx.tree.rootNode);
+  run(ctx: RuleContext): void {
+    // Cheap pre-check: without a `typeof` anywhere there is nothing to contradict.
+    if (!ctx.nodesOfType('unary_expression').some((u) => u.child(0)?.type === 'typeof')) return;
+
+    for (const node of ctx.nodesOfType('binary_expression')) {
+      const op = node.childForFieldName('operator');
+      if (!op || op.text !== '&&') continue;
+      // Only consider the top of an && chain (parent is not itself an && bin-expr).
+      const parent = node.parent;
+      const parentIsAnd =
+        parent &&
+        parent.type === 'binary_expression' &&
+        parent.childForFieldName('operator')?.text === '&&';
+      if (parentIsAnd) continue;
+
+      const checks: TypeofCheck[] = [];
+      collectTypeofChecks(node, checks);
+      // Group literals by variable; >1 distinct literal for one variable = contradiction.
+      const byVar = new Map<string, Set<string>>();
+      for (const c of checks) {
+        const set = byVar.get(c.variable) ?? new Set<string>();
+        set.add(c.literal);
+        byVar.set(c.variable, set);
+      }
+      for (const [v, lits] of byVar) {
+        if (lits.size <= 1) continue;
+        if (!ctx.isSuppressed(node.startPosition.row, 'IED-L007')) {
+          ctx.report({
+            message: `"${v}" is checked against multiple typeof values (${[...lits].join(', ')}) joined by &&; this is always false.`,
+            severity: Severity.Warning,
+            range: nodeRange(node),
+            data: { variable: v, literals: [...lits] }
+          });
+        }
+        break;
+      }
+    }
   }
 };

@@ -24,6 +24,7 @@ import {
   type RuleContext,
   type TSNode
 } from '../types';
+import { EnclosingStack, spanOf } from '../util';
 
 /** Collect names of non-final fields declared directly in a class body. */
 function nonFinalFieldNames(classNode: TSNode): Set<string> {
@@ -96,39 +97,36 @@ export const synchronizedNonFinalRule: Rule = {
     'Make the lock `final`, or lock on a dedicated `private final Object`.'
   ].join('\n'),
 
-  run(ctx: RuleContext): void {
-    const walk = (node: TSNode, nonFinal: Set<string>): void => {
-      // Entering a class refreshes the set of visible non-final field names.
-      const fieldSet =
-        node.type === 'class_declaration' ? nonFinalFieldNames(node) : nonFinal;
+  nodeTypes: () => ['class_declaration', 'synchronized_statement'],
 
-      if (node.type === 'synchronized_statement') {
-        // First named child is the parenthesized lock expression.
-        const paren = node.namedChild(0);
-        const lockExpr =
-          paren?.type === 'parenthesized_expression'
-            ? paren.namedChild(0)
-            : paren ?? null;
-        const name = lockFieldName(lockExpr);
-        if (name && fieldSet.has(name) && lockExpr) {
-          if (!ctx.isSuppressed(node.startPosition.row, 'IED-C010')) {
-            ctx.report({
-              message:
-                'Synchronizing on non-final field; lock on a final object instead.',
-              severity: Severity.Warning,
-              range: nodeRange(lockExpr),
-              data: { lock: name }
-            });
-          }
+  run(ctx: RuleContext): void {
+    // The innermost enclosing class decides which non-final fields are visible.
+    const classes = new EnclosingStack<Set<string>>();
+    for (const node of ctx.nodesOfType(['class_declaration', 'synchronized_statement'])) {
+      classes.at(spanOf(node));
+      if (node.type === 'class_declaration') {
+        classes.push(spanOf(node), nonFinalFieldNames(node));
+        continue;
+      }
+      const fieldSet = classes.innermost() ?? new Set<string>();
+      // First named child is the parenthesized lock expression.
+      const paren = node.namedChild(0);
+      const lockExpr =
+        paren?.type === 'parenthesized_expression'
+          ? paren.namedChild(0)
+          : paren ?? null;
+      const name = lockFieldName(lockExpr);
+      if (name && fieldSet.has(name) && lockExpr) {
+        if (!ctx.isSuppressed(node.startPosition.row, 'IED-C010')) {
+          ctx.report({
+            message:
+              'Synchronizing on non-final field; lock on a final object instead.',
+            severity: Severity.Warning,
+            range: nodeRange(lockExpr),
+            data: { lock: name }
+          });
         }
       }
-
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child, fieldSet);
-      }
-    };
-
-    walk(ctx.tree.rootNode, new Set());
+    }
   }
 };

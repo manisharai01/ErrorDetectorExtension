@@ -6,10 +6,11 @@
  * (e.g. `opts.x = 1` or `arr[0] = 1` where `opts`/`arr` is a parameter).
  * Mutating arguments is a side effect that surprises callers.
  *
- * Two-pass, walk-based: for each function-like node collect its
- * `formal_parameters` identifiers, then within that function's body flag
- * `assignment_expression` / `augmented_assignment_expression` whose left side
- * is a member/subscript access rooted at one of those parameters.
+ * One pass over the indexed functions and assignments: for each function-like
+ * node collect its `formal_parameters` identifiers, then flag every
+ * `assignment_expression` / `augmented_assignment_expression` (whose innermost
+ * enclosing function is that one) with a left side that is a member/subscript
+ * access rooted at one of those parameters.
  */
 
 import {
@@ -19,6 +20,7 @@ import {
   type RuleContext,
   type TSNode
 } from '../types';
+import { EnclosingStack, spanOf } from '../util';
 
 /** Node types that own a `formal_parameters` and a body we should scope into. */
 const FUNCTION_TYPES = new Set([
@@ -113,63 +115,43 @@ export const objectMutationRule: Rule = {
     'Suppress with `// ied-disable-next-line IED-L004`.'
   ].join('\n'),
 
+  nodeTypes: () => [...FUNCTION_TYPES, ...ASSIGN_TYPES],
+
   run(ctx: RuleContext): void {
-    // Walk every function; within its subtree, the params it declares are the
-    // "argument" identifiers we guard. Nested functions are visited on their
-    // own, so each function's params are checked against its own assignments.
-    const walkFunctions = (node: TSNode): void => {
+    // Each assignment is checked against the params of its innermost enclosing
+    // function only, so a nested function's (shadowing) params are never mixed
+    // with its parent's. Findings are emitted grouped per function, in function
+    // order.
+    const functions: Array<{ params: Set<string>; mutations: TSNode[] }> = [];
+    const scopes = new EnclosingStack<{ params: Set<string>; mutations: TSNode[] }>();
+
+    for (const node of ctx.nodesOfType([...FUNCTION_TYPES, ...ASSIGN_TYPES])) {
+      scopes.at(spanOf(node));
       if (FUNCTION_TYPES.has(node.type)) {
-        const params = collectParamNames(node);
-        if (params.size > 0) {
-          checkAssignments(ctx, node, params, node);
-        }
+        const fn = { params: collectParamNames(node), mutations: [] as TSNode[] };
+        functions.push(fn);
+        scopes.push(spanOf(node), fn);
+        continue;
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walkFunctions(child);
-      }
-    };
-    walkFunctions(ctx.tree.rootNode);
-  }
-};
-
-/**
- * Scan `node`'s subtree for assignments to a param-rooted member/subscript.
- * Stops descending into nested functions so their (shadowing) params aren't
- * checked against this function's param set.
- */
-function checkAssignments(
-  ctx: RuleContext,
-  node: TSNode,
-  params: Set<string>,
-  scopeRoot: TSNode
-): void {
-  // Don't re-enter a nested function's body (other than the scope root itself).
-  if (node !== scopeRoot && FUNCTION_TYPES.has(node.type)) return;
-
-  if (ASSIGN_TYPES.has(node.type)) {
-    const left = node.childForFieldName('left');
-    if (
-      left &&
-      (left.type === 'member_expression' || left.type === 'subscript_expression')
-    ) {
+      const fn = scopes.innermost();
+      if (!fn || fn.params.size === 0) continue;
+      const left = node.childForFieldName('left');
+      if (!left || (left.type !== 'member_expression' && left.type !== 'subscript_expression')) continue;
       const root = rootIdentifier(left);
-      if (root && params.has(root)) {
-        const row = node.startPosition.row;
-        if (!ctx.isSuppressed(row, 'IED-L004')) {
-          ctx.report({
-            message: `Mutation of function argument "${root}".`,
-            severity: Severity.Warning,
-            range: nodeRange(node),
-            data: { param: root }
-          });
-        }
+      if (root && fn.params.has(root)) fn.mutations.push(node);
+    }
+
+    for (const fn of functions) {
+      for (const node of fn.mutations) {
+        if (ctx.isSuppressed(node.startPosition.row, 'IED-L004')) continue;
+        const root = rootIdentifier(node.childForFieldName('left')!);
+        ctx.report({
+          message: `Mutation of function argument "${root}".`,
+          severity: Severity.Warning,
+          range: nodeRange(node),
+          data: { param: root }
+        });
       }
     }
   }
-
-  for (let i = 0; i < node.childCount; i++) {
-    const child = node.child(i);
-    if (child) checkAssignments(ctx, child, params, scopeRoot);
-  }
-}
+};

@@ -84,6 +84,8 @@ export const nilDerefRule: Rule = {
     'Move the `if x != nil` guard before the first use of `x`.'
   ].join('\n'),
 
+  nodeTypes: () => ['block'],
+
   run(ctx: RuleContext): void {
     const walkBlock = (block: TSNode): void => {
       const stmts: TSNode[] = [];
@@ -127,14 +129,8 @@ export const nilDerefRule: Rule = {
       }
     };
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('block')) {
       if (node.type === 'block') walkBlock(node);
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

@@ -9,8 +9,9 @@
  *      `for (...; i < x.length; ...)` array scans nested >= 2 deep — reported
  *      conservatively as a quadratic hotspot.
  *
- * This is a stateful, depth-tracking walk (queries can't track nesting), modeled
- * on the deep-nesting reference rule. Ported from src/rules/performance/nested-loop.ts.
+ * The loops come from the shared index in document order; a stack of the
+ * enclosing loop spans stands in for the old depth-tracking walk. Ported from
+ * src/rules/performance/nested-loop.ts.
  */
 
 import {
@@ -20,8 +21,9 @@ import {
   type RuleContext,
   type TSNode
 } from '../types';
+import { EnclosingStack, spanOf } from '../util';
 
-const LOOP_TYPES = new Set(['for_statement', 'for_in_statement', 'while_statement']);
+const LOOP_TYPES = ['for_statement', 'for_in_statement', 'while_statement'];
 
 /**
  * Identifier of the collection a loop iterates, or null if undetermined.
@@ -103,67 +105,44 @@ export const nestedLoopRule: Rule = {
     '`for (...; i < x.length; ...)` array scans are flagged conservatively.'
   ].join('\n'),
 
+  nodeTypes: () => LOOP_TYPES,
+
   run(ctx: RuleContext): void {
-    // Each stack entry is the enclosing loops' collections (string) and whether
-    // they were length-scans (for the conservative fallback).
-    const collections: Array<string | null> = [];
-    let loopDepth = 0;
-    let lengthScanDepth = 0;
+    // The enclosing loops: the collection each iterates and whether it is a
+    // length-scan (for the conservative fallback).
+    const loops = new EnclosingStack<{ coll: string | null; lengthScan: boolean }>();
 
-    const walk = (node: TSNode): void => {
-      const isLoop = LOOP_TYPES.has(node.type);
-      let pushedCollection = false;
-      let countedLengthScan = false;
+    for (const node of ctx.nodesOfType(LOOP_TYPES)) {
+      loops.at(spanOf(node));
+      const coll = loopCollection(node);
+      const lengthScan = isLengthScan(node);
 
-      if (isLoop) {
-        const coll = loopCollection(node);
-        const lengthScan = isLengthScan(node);
-
-        if (loopDepth > 0 && !ctx.isSuppressed(node.startPosition.row, 'IED-P001')) {
-          if (coll && collections.includes(coll)) {
-            // Strongest signal: the inner loop iterates the same collection as
-            // an enclosing loop.
-            ctx.report({
-              message: `Nested iteration over "${coll}" is O(n^2) — consider a Map/Set for lookups.`,
-              severity: Severity.Info,
-              range: nodeRange(node),
-              data: { collection: coll, kind: 'same-collection' }
-            });
-          } else if (lengthScan && lengthScanDepth >= 1) {
-            // Conservative fallback: two classic `for (...; i < x.length; ...)`
-            // array scans nested >= 2 deep, even when the collections differ or
-            // can't be identified as the same one.
-            ctx.report({
-              message:
-                'Nested array scans (inner loop over a `.length` range inside another) — likely O(n^2).',
-              severity: Severity.Info,
-              range: nodeRange(node),
-              data: { kind: 'length-scan' }
-            });
-          }
-        }
-
-        collections.push(coll);
-        pushedCollection = true;
-        loopDepth++;
-        if (lengthScan) {
-          lengthScanDepth++;
-          countedLengthScan = true;
+      if (loops.depth > 0 && !ctx.isSuppressed(node.startPosition.row, 'IED-P001')) {
+        const outer = [...loops.values()];
+        if (coll && outer.some((l) => l.coll === coll)) {
+          // Strongest signal: the inner loop iterates the same collection as
+          // an enclosing loop.
+          ctx.report({
+            message: `Nested iteration over "${coll}" is O(n^2) — consider a Map/Set for lookups.`,
+            severity: Severity.Info,
+            range: nodeRange(node),
+            data: { collection: coll, kind: 'same-collection' }
+          });
+        } else if (lengthScan && outer.some((l) => l.lengthScan)) {
+          // Conservative fallback: two classic `for (...; i < x.length; ...)`
+          // array scans nested >= 2 deep, even when the collections differ or
+          // can't be identified as the same one.
+          ctx.report({
+            message:
+              'Nested array scans (inner loop over a `.length` range inside another) — likely O(n^2).',
+            severity: Severity.Info,
+            range: nodeRange(node),
+            data: { kind: 'length-scan' }
+          });
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-
-      if (pushedCollection) {
-        collections.pop();
-        loopDepth--;
-      }
-      if (countedLengthScan) lengthScanDepth--;
-    };
-
-    walk(ctx.tree.rootNode);
+      loops.push(spanOf(node), { coll, lengthScan });
+    }
   }
 };

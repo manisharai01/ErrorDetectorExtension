@@ -70,13 +70,10 @@ export const formatStringRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['call_expression'],
+
   run(ctx: RuleContext): void {
-    const matches = ctx.query('(call_expression) @call');
-
-    for (const m of matches) {
-      const call = m.captures.find((c) => c.name === 'call')?.node;
-      if (!call) continue;
-
+    for (const call of ctx.nodesOfType('call_expression')) {
       const name = calleeName(call);
       if (!name || !(name in FORMAT_ARG_INDEX)) continue;
 

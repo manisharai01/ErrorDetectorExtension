@@ -7,7 +7,6 @@
 
 import {
   Severity,
-  capture,
   nodeRange,
   type Rule,
   type RuleContext
@@ -33,16 +32,13 @@ export const printStatementRule: Rule = {
     'Relaxed inside test files. Suppress with `# ied-disable-next-line IED-Q009`.'
   ].join('\n'),
 
+  nodeTypes: () => ['call'],
+
   run(ctx: RuleContext): void {
     if (ctx.isTestFile) return;
-    const matches = ctx.query(`
-      (call
-        function: (identifier) @fn
-        (#eq? @fn "print")) @call
-    `);
-    for (const m of matches) {
-      const call = capture(m, 'call');
-      if (!call) continue;
+    for (const call of ctx.nodesOfType('call')) {
+      const fn = call.childForFieldName('function');
+      if (!fn || fn.type !== 'identifier' || fn.text !== 'print') continue;
       if (ctx.isSuppressed(call.startPosition.row, 'IED-Q009')) continue;
       ctx.report({
         message: 'Remove print() before shipping.',

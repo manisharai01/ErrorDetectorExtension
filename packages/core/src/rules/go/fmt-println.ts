@@ -8,11 +8,12 @@
 
 import {
   Severity,
-  capture,
   nodeRange,
   type Rule,
   type RuleContext
 } from '../types';
+
+const PRINT_METHODS = /^(Println|Printf|Print)$/;
 
 export const fmtPrintlnRule: Rule = {
   id: 'IED-Q008',
@@ -33,20 +34,17 @@ export const fmtPrintlnRule: Rule = {
     'Use a structured logger (`log`, `slog`, zap, ...) instead. Relaxed in tests.'
   ].join('\n'),
 
+  nodeTypes: () => ['call_expression'],
+
   run(ctx: RuleContext): void {
     if (ctx.isTestFile) return;
-    const matches = ctx.query(`
-      (call_expression
-        function: (selector_expression
-          operand: (identifier) @pkg
-          field: (field_identifier) @method)
-        (#eq? @pkg "fmt")
-        (#match? @method "^(Println|Printf|Print)$")) @call
-    `);
-    for (const m of matches) {
-      const call = capture(m, 'call');
-      const method = capture(m, 'method');
-      if (!call || !method) continue;
+    for (const call of ctx.nodesOfType('call_expression')) {
+      const fn = call.childForFieldName('function');
+      if (!fn || fn.type !== 'selector_expression') continue;
+      const pkg = fn.childForFieldName('operand');
+      if (!pkg || pkg.type !== 'identifier' || pkg.text !== 'fmt') continue;
+      const method = fn.childForFieldName('field');
+      if (!method || method.type !== 'field_identifier' || !PRINT_METHODS.test(method.text)) continue;
       if (ctx.isSuppressed(call.startPosition.row, 'IED-Q008')) continue;
       ctx.report({
         message: `Remove fmt.${method.text} before shipping (use a logger).`,

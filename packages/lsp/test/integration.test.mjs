@@ -2,12 +2,16 @@
 // LSP session (initialize -> initialized -> didOpen), and assert that
 // publishDiagnostics arrives containing IED-Q001 and IED-S001.
 // Run: node test/integration.test.mjs
+// Set IED_LSP_SERVER to test another build of the server, e.g. the copy bundled
+// into the VS Code extension (packages/vscode/dist/server.js).
 import { spawn } from 'node:child_process';
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const serverBin = path.join(here, '..', 'bin', 'ied-lsp.js');
+const serverBin = process.env.IED_LSP_SERVER
+  ? path.resolve(process.env.IED_LSP_SERVER)
+  : path.join(here, '..', 'bin', 'ied-lsp.js');
 const TIMEOUT_MS = 10000;
 
 function encode(msg) {

@@ -44,10 +44,12 @@ export const debugOutputRubyRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['call'],
+
   run(ctx: RuleContext): void {
     if (ctx.isTestFile) return;
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('call')) {
       if (node.type === 'call') {
         const receiver = node.childForFieldName('receiver');
         const method = node.childForFieldName('method');
@@ -66,12 +68,6 @@ export const debugOutputRubyRule: Rule = {
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

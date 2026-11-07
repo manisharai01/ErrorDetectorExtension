@@ -75,6 +75,8 @@ export const appendPreallocRule: Rule = {
     'Preallocate when the size is known: `out := make([]int, 0, len(src))`.'
   ].join('\n'),
 
+  nodeTypes: () => ['assignment_statement', 'short_var_declaration'],
+
   run(ctx: RuleContext): void {
     const reported = new Set<string>();
 
@@ -100,18 +102,12 @@ export const appendPreallocRule: Rule = {
       });
     };
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType(['assignment_statement', 'short_var_declaration'])) {
       if (node.type === 'assignment_statement') {
         check(node, node.childForFieldName('left'), node.childForFieldName('right'));
       } else if (node.type === 'short_var_declaration') {
         check(node, node.childForFieldName('left'), node.childForFieldName('right'));
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

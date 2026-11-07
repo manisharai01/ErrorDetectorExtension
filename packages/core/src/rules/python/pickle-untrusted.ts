@@ -38,13 +38,15 @@ export const pickleUntrustedRule: Rule = {
     'Prefer `json`, `pickle` only on trusted data, or `yaml.safe_load`.'
   ].join('\n'),
 
+  nodeTypes: () => ['call'],
+
   run(ctx: RuleContext): void {
     const flag = (node: TSNode, message: string): void => {
       if (ctx.isSuppressed(node.startPosition.row, 'IED-S013')) return;
       ctx.report({ message, severity: Severity.Error, range: nodeRange(node) });
     };
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('call')) {
       if (node.type === 'call') {
         const fn = node.childForFieldName('function');
         if (fn && fn.type === 'attribute') {
@@ -71,11 +73,6 @@ export const pickleUntrustedRule: Rule = {
           }
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const c = node.child(i);
-        if (c) walk(c);
-      }
-    };
-    walk(ctx.tree.rootNode);
+    }
   }
 };

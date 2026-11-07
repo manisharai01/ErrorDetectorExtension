@@ -39,8 +39,10 @@ export const noNullForgivingRule: Rule = {
     'Prefer an explicit null check, a nullable annotation, or a guard clause.'
   ].join('\n'),
 
+  nodeTypes: () => ['postfix_unary_expression'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('postfix_unary_expression')) {
       if (node.type === 'postfix_unary_expression') {
         const last = node.child(node.childCount - 1);
         if (last && last.text === '!') {
@@ -54,12 +56,6 @@ export const noNullForgivingRule: Rule = {
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

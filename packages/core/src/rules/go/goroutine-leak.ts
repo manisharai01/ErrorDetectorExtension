@@ -66,19 +66,19 @@ export const goroutineLeakRule: Rule = {
     'Add a `select` with a `<-ctx.Done()` / done case, or a `return`/`break`.'
   ].join('\n'),
 
-  run(ctx: RuleContext): void {
-    const matches = ctx.query(`
-      (go_statement
-        (call_expression
-          function: (func_literal body: (block) @body))) @go
-    `);
+  nodeTypes: () => ['go_statement'],
 
+  run(ctx: RuleContext): void {
     const reported = new Set<number>();
 
-    for (const m of matches) {
-      const go = m.captures.find((c) => c.name === 'go')?.node;
-      const body = m.captures.find((c) => c.name === 'body')?.node;
-      if (!go || !body) continue;
+    for (const go of ctx.nodesOfType('go_statement')) {
+      // `go func() { … }()` — a call of a function literal with a block body.
+      const call = go.namedChild(0);
+      if (!call || call.type !== 'call_expression') continue;
+      const literal = call.childForFieldName('function');
+      if (!literal || literal.type !== 'func_literal') continue;
+      const body = literal.childForFieldName('body');
+      if (!body || body.type !== 'block') continue;
 
       // Find an unbounded for inside the goroutine body.
       const findUnboundedFor = (node: TSNode): TSNode | null => {

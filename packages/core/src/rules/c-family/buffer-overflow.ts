@@ -12,6 +12,10 @@
  * The function-call form is reliable; the static-index form only fires when
  * both the declared size and the index are integer literals, so it is very low
  * false-positive.
+ *
+ * One pass over the indexed function definitions, array declarators, calls and
+ * subscripts in document order; a stack of the enclosing function definitions
+ * gives each node the size scope of its innermost function.
  */
 
 import {
@@ -21,8 +25,11 @@ import {
   type RuleContext,
   type TSNode
 } from '../types';
+import { EnclosingStack, spanOf } from '../util';
 
 const UNBOUNDED_COPY = new Set(['gets', 'strcpy', 'strcat', 'sprintf']);
+
+const NODE_TYPES = ['function_definition', 'array_declarator', 'call_expression', 'subscript_expression'];
 
 /** Parse an integer literal node like `8`, `0x10`, `010` to a number, else null. */
 function literalToInt(node: TSNode | null | undefined): number | null {
@@ -67,61 +74,74 @@ export const bufferOverflowRule: Rule = {
     'Prefer `strncpy`/`strncat`/`snprintf` and `fgets` over `gets`.'
   ].join('\n'),
 
+  nodeTypes: () => NODE_TYPES,
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode, sizes: Map<string, number>): void => {
-      // A function body gets its own size scope.
-      const ownScope = node.type === 'function_definition';
-      const scope = ownScope ? new Map<string, number>() : sizes;
+    // Literal array sizes by name. Each function definition gets its own, empty
+    // scope (it does not see the enclosing one); code outside any function
+    // shares the file scope. Sizes are recorded in document order, so an index
+    // only sees the declarations before it.
+    const fileScope = new Map<string, number>();
+    const functionScopes = new EnclosingStack<Map<string, number>>();
 
-      // Track `T arr[N];` declarations with literal sizes.
-      if (node.type === 'array_declarator') {
-        const decl = node.childForFieldName('declarator');
-        const size = literalToInt(node.childForFieldName('size'));
-        if (decl?.type === 'identifier' && size !== null) {
-          scope.set(decl.text, size);
-        }
-      }
+    for (const node of ctx.nodesOfType(NODE_TYPES)) {
+      const span = spanOf(node);
+      const scope = functionScopes.at(span).innermost() ?? fileScope;
 
-      // Shape 1: unbounded-copy calls.
-      if (node.type === 'call_expression') {
-        const name = calleeName(node);
-        if (name && UNBOUNDED_COPY.has(name)) {
-          if (!ctx.isSuppressed(node.startPosition.row, 'IED-S015')) {
-            ctx.report({
-              message: `possible buffer overflow — \`${name}\` performs an unbounded copy.`,
-              severity: Severity.Warning,
-              range: nodeRange(node),
-              data: { callee: name, kind: 'unbounded-copy' }
-            });
+      switch (node.type) {
+        case 'function_definition':
+          // A function body gets its own size scope.
+          functionScopes.push(span, new Map());
+          break;
+
+        case 'array_declarator': {
+          // Track `T arr[N];` declarations with literal sizes.
+          const decl = node.childForFieldName('declarator');
+          const size = literalToInt(node.childForFieldName('size'));
+          if (decl?.type === 'identifier' && size !== null) {
+            scope.set(decl.text, size);
           }
+          break;
         }
-      }
 
-      // Shape 2: constant out-of-bounds index.
-      if (node.type === 'subscript_expression') {
-        const arg = node.childForFieldName('argument');
-        const idx = literalToInt(node.childForFieldName('index'));
-        if (arg?.type === 'identifier' && idx !== null) {
-          const declared = scope.get(arg.text);
-          if (declared !== undefined && idx >= declared) {
+        case 'call_expression': {
+          // Shape 1: unbounded-copy calls.
+          const name = calleeName(node);
+          if (name && UNBOUNDED_COPY.has(name)) {
             if (!ctx.isSuppressed(node.startPosition.row, 'IED-S015')) {
               ctx.report({
-                message: `possible buffer overflow — index ${idx} is outside \`${arg.text}[${declared}]\`.`,
+                message: `possible buffer overflow — \`${name}\` performs an unbounded copy.`,
                 severity: Severity.Warning,
                 range: nodeRange(node),
-                data: { array: arg.text, index: idx, size: declared, kind: 'index' }
+                data: { callee: name, kind: 'unbounded-copy' }
               });
             }
           }
+          break;
+        }
+
+        case 'subscript_expression': {
+          // Shape 2: constant out-of-bounds index (nothing to check against
+          // until a literal-size array is in scope).
+          if (scope.size === 0) break;
+          const arg = node.childForFieldName('argument');
+          const idx = literalToInt(node.childForFieldName('index'));
+          if (arg?.type === 'identifier' && idx !== null) {
+            const declared = scope.get(arg.text);
+            if (declared !== undefined && idx >= declared) {
+              if (!ctx.isSuppressed(node.startPosition.row, 'IED-S015')) {
+                ctx.report({
+                  message: `possible buffer overflow — index ${idx} is outside \`${arg.text}[${declared}]\`.`,
+                  severity: Severity.Warning,
+                  range: nodeRange(node),
+                  data: { array: arg.text, index: idx, size: declared, kind: 'index' }
+                });
+              }
+            }
+          }
+          break;
         }
       }
-
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child, scope);
-      }
-    };
-
-    walk(ctx.tree.rootNode, new Map());
+    }
   }
 };

@@ -1,11 +1,16 @@
 import { Command } from 'commander';
-import { registerAllRules, registerPlugins, registry, loadConfig } from '@ied/core';
+import { registerAllRules, registerPlugins, registry, loadConfig, PROJECT_RULES } from '@ied/core';
 import type { Rule } from '@ied/core';
+
+/** What `ied rules` lists: per-file rules plus the whole-program checks. */
+type Listed = Pick<Rule, 'id' | 'name' | 'category' | 'severity' | 'description'> & {
+  scope: 'file' | 'project';
+};
 
 export function rulesCommand(): Command {
   const cmd = new Command('rules');
   cmd
-    .description('List available rules (including those loaded from plugins)')
+    .description('List available rules (including those loaded from plugins and the whole-program checks)')
     .option('--category <cat>', 'filter by category')
     .option('--json', 'output as JSON')
     .action((opts: { category?: string; json?: boolean }) => {
@@ -20,7 +25,10 @@ export function rulesCommand(): Command {
       } catch {
         /* a broken config shouldn't stop `ied rules` from listing built-ins */
       }
-      let rules: Rule[] = registry.all();
+      let rules: Listed[] = [
+        ...registry.all().map((r): Listed => ({ ...r, scope: 'file' })),
+        ...PROJECT_RULES.map((r): Listed => ({ ...r, scope: 'project' })),
+      ];
       if (opts.category) {
         rules = rules.filter((r) => r.category === opts.category);
       }
@@ -32,12 +40,13 @@ export function rulesCommand(): Command {
           category: r.category,
           severity: r.severity,
           description: r.description,
+          scope: r.scope,
         }));
         process.stdout.write(JSON.stringify(out, null, 2) + '\n');
         return;
       }
 
-      const byCategory = new Map<string, Rule[]>();
+      const byCategory = new Map<string, Listed[]>();
       for (const r of rules) {
         const list = byCategory.get(r.category) ?? [];
         list.push(r);
@@ -48,7 +57,8 @@ export function rulesCommand(): Command {
         process.stdout.write(`\n${cat}\n`);
         const list = byCategory.get(cat)!;
         for (const r of list) {
-          process.stdout.write('  ' + r.id.padEnd(12) + String(r.severity).padEnd(8) + r.description + '\n');
+          const scope = r.scope === 'project' ? '  [whole-program: ied project]' : '';
+          process.stdout.write('  ' + r.id.padEnd(12) + String(r.severity).padEnd(8) + r.description + scope + '\n');
         }
       }
       process.stdout.write(`\n${rules.length} rules\n`);

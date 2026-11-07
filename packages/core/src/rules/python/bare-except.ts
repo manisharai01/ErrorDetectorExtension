@@ -37,8 +37,10 @@ export const bareExceptRule: Rule = {
     'Catch a specific type: `except ValueError:` or at least `except Exception:`.'
   ].join('\n'),
 
+  nodeTypes: () => ['except_clause'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('except_clause')) {
       if (node.type === 'except_clause') {
         // A typed except has a named exception expression before the body block;
         // a bare `except:` has only the `block` as a named child.
@@ -53,11 +55,6 @@ export const bareExceptRule: Rule = {
           }
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const c = node.child(i);
-        if (c) walk(c);
-      }
-    };
-    walk(ctx.tree.rootNode);
+    }
   }
 };

@@ -56,8 +56,10 @@ export const unsafeWithoutCommentRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['unsafe_block'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('unsafe_block')) {
       if (node.type === 'unsafe_block') {
         const startRow = node.startPosition.row;
         // Scan upward past blank lines for a justifying comment.
@@ -82,12 +84,6 @@ export const unsafeWithoutCommentRule: Rule = {
           }
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

@@ -118,6 +118,49 @@ test('baseline then scan --baseline hides findings', () => {
   }
 });
 
+// --- languages: the collector picks up every engine language (Dart included) ---
+test('scan analyzes .dart, .kt and .rb files', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ied-langs-'));
+  cleanup.push(dir);
+  fs.writeFileSync(path.join(dir, 'main.dart'), "void main() { print('hi'); }\n");
+  fs.writeFileSync(path.join(dir, 'App.kt'), 'fun main() { val n = find()!! }\n');
+  fs.writeFileSync(path.join(dir, 'job.rb'), 'begin\n  risky\nrescue\nend\n');
+  const ids = JSON.parse(run(['scan', dir, '--format', 'json', '--no-cache'], dir)).diagnostics.map((d) => d.ruleId);
+  for (const id of ['IED-Q019', 'IED-T004', 'IED-L020']) {
+    if (!ids.includes(id)) throw new Error(`expected ${id}, got ${ids.join(', ')}`);
+  }
+});
+
+// --- whole-program checks ---
+function makeProjectDir() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ied-project-'));
+  cleanup.push(dir);
+  fs.writeFileSync(path.join(dir, 'a.ts'), 'import { b } from "./b";\nexport const a = () => b();\n');
+  fs.writeFileSync(path.join(dir, 'b.ts'), 'import { a } from "./a";\nimport { gone } from "./missing";\nexport const b = () => a();\n');
+  return dir;
+}
+
+test('project --format json reports a cycle (X001) and a broken import (X002), exit 1 on the error', () => {
+  const dir = makeProjectDir();
+  let status = 0;
+  let out = '';
+  try {
+    out = execFileSync('node', [bin, 'project', '.', '--format', 'json'], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (err) {
+    status = err.status;
+    out = err.stdout;
+  }
+  const ids = JSON.parse(out).diagnostics.map((d) => d.ruleId);
+  if (!ids.includes('IED-X001') || !ids.includes('IED-X002')) throw new Error(`got ${ids.join(', ')}`);
+  if (status !== 1) throw new Error(`expected exit 1 (broken import is an error), got ${status}`);
+});
+
+test('cycles prints the loop in the terminal', () => {
+  const dir = makeProjectDir();
+  const out = run(['cycles', '.'], dir);
+  if (!/Import cycle: a\.ts → b\.ts → a\.ts/.test(out.replace(/\x1b\[[0-9;]*m/g, ''))) throw new Error(out);
+});
+
 // --- cleanup ---
 for (const dir of cleanup) {
   try {

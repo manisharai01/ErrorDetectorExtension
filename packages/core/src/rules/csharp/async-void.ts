@@ -41,8 +41,10 @@ export const asyncVoidRule: Rule = {
     'Return `Task` instead. `async void` is only appropriate for event handlers.'
   ].join('\n'),
 
+  nodeTypes: () => ['method_declaration'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('method_declaration')) {
       if (node.type === 'method_declaration') {
         let isAsync = false;
         for (let i = 0; i < node.childCount; i++) {
@@ -67,12 +69,6 @@ export const asyncVoidRule: Rule = {
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

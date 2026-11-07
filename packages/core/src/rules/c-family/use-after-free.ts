@@ -9,6 +9,10 @@
  *
  * Staying inside one block and requiring no intervening reassignment keeps the
  * false-positive rate low (loops, gotos and aliasing are deliberately ignored).
+ *
+ * The blocks, calls and delete expressions come from the shared node index in
+ * document order; a statement's first call / delete is found by binary search
+ * over those lists rather than by re-traversing the statement.
  */
 
 import {
@@ -18,6 +22,10 @@ import {
   type RuleContext,
   type TSNode
 } from '../types';
+import { encloses, spanOf, type Span } from '../util';
+
+/** `delete_expression` only exists in C++; in C the list is simply empty. */
+const NODE_TYPES = ['compound_statement', 'call_expression', 'delete_expression'];
 
 function calleeName(call: TSNode): string | null {
   const fn = call.childForFieldName('function');
@@ -26,18 +34,39 @@ function calleeName(call: TSNode): string | null {
   return null;
 }
 
+/**
+ * The first node of document-ordered `nodes` inside `span` — what a pre-order
+ * search of that subtree finds first (the subtree root itself if it is one).
+ * Document order is also start order, so binary-search the first node starting
+ * at or after the span; the subtree holds a match only if that one is inside.
+ */
+function firstWithin(nodes: readonly TSNode[], span: Span): TSNode | undefined {
+  let lo = 0;
+  let hi = nodes.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (nodes[mid].startIndex < span.start) lo = mid + 1;
+    else hi = mid;
+  }
+  const first = nodes[lo];
+  return first && encloses(span, spanOf(first)) ? first : undefined;
+}
+
 /** The pointer identifier freed by `free(x)` / `delete x`, or null. */
-function freedTarget(stmt: TSNode): { name: string; node: TSNode } | null {
+function freedTarget(
+  stmt: TSNode,
+  calls: readonly TSNode[],
+  deletes: readonly TSNode[]
+): { name: string; node: TSNode } | null {
+  const span = spanOf(stmt);
   // free(x);
-  const call = stmt.type === 'call_expression' ? stmt : stmt.descendantsOfType('call_expression')[0];
+  const call = firstWithin(calls, span);
   if (call && calleeName(call) === 'free') {
     const arg = call.childForFieldName('arguments')?.namedChild(0);
     if (arg?.type === 'identifier') return { name: arg.text, node: call };
   }
   // delete x;  /  delete[] x;
-  const del = stmt.type === 'delete_expression'
-    ? stmt
-    : stmt.descendantsOfType('delete_expression')[0];
+  const del = firstWithin(deletes, span);
   if (del) {
     const target = del.namedChildren.find((c) => c.type === 'identifier');
     if (target) return { name: target.text, node: del };
@@ -91,39 +120,37 @@ export const useAfterFreeRule: Rule = {
     '```'
   ].join('\n'),
 
-  run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
-      if (node.type === 'compound_statement') {
-        const stmts = node.namedChildren;
-        for (let i = 0; i < stmts.length; i++) {
-          const freed = freedTarget(stmts[i]);
-          if (!freed) continue;
+  nodeTypes: () => NODE_TYPES,
 
-          // Scan subsequent statements in this block.
-          for (let j = i + 1; j < stmts.length; j++) {
-            const later = stmts[j];
-            if (reassigns(later, freed.name)) break; // pointer is valid again
-            if (references(later, freed.name)) {
-              if (!ctx.isSuppressed(later.startPosition.row, 'IED-R010')) {
-                ctx.report({
-                  message: `\`${freed.name}\` is used after being freed — use after free.`,
-                  severity: Severity.Warning,
-                  range: nodeRange(later),
-                  data: { variable: freed.name }
-                });
-              }
-              break; // one report per free is enough
+  run(ctx: RuleContext): void {
+    const calls = ctx.nodesOfType('call_expression');
+    const deletes = ctx.nodesOfType('delete_expression');
+
+    // Each block is scanned on its own, outer blocks before the blocks nested
+    // in them (document order).
+    for (const block of ctx.nodesOfType('compound_statement')) {
+      const stmts = block.namedChildren;
+      for (let i = 0; i < stmts.length; i++) {
+        const freed = freedTarget(stmts[i], calls, deletes);
+        if (!freed) continue;
+
+        // Scan subsequent statements in this block.
+        for (let j = i + 1; j < stmts.length; j++) {
+          const later = stmts[j];
+          if (reassigns(later, freed.name)) break; // pointer is valid again
+          if (references(later, freed.name)) {
+            if (!ctx.isSuppressed(later.startPosition.row, 'IED-R010')) {
+              ctx.report({
+                message: `\`${freed.name}\` is used after being freed — use after free.`,
+                severity: Severity.Warning,
+                range: nodeRange(later),
+                data: { variable: freed.name }
+              });
             }
+            break; // one report per free is enough
           }
         }
       }
-
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

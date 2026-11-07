@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc -b",
     "watch": "tsc -b --watch",
-    "test": "node test/formats.test.mjs",
+    "test": "node test/formats.test.mjs && node test/ci.test.mjs && node test/ai.test.mjs",
     "test:ci": "node test/ci.test.mjs",
     "test:ai": "node test/ai.test.mjs"
   },

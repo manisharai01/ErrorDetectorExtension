@@ -16,15 +16,6 @@ import {
   type TSNode
 } from '../types';
 
-/** Walk every descendant of `root`, calling `fn` on each node. */
-function walkAll(root: TSNode, fn: (n: TSNode) => void): void {
-  fn(root);
-  for (let i = 0; i < root.childCount; i++) {
-    const child = root.child(i);
-    if (child) walkAll(child, fn);
-  }
-}
-
 /** The simple callee name of a call_expression (`ref(...)` -> "ref"), or null. */
 function calleeName(call: TSNode): string | null {
   const fn = call.childForFieldName('function');
@@ -58,11 +49,12 @@ export const vueRefMisuseRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['variable_declarator', 'assignment_expression'],
+
   run(ctx: RuleContext): void {
     // Pass 1: collect `const x = ref(...)` binding names.
     const refs = new Set<string>();
-    walkAll(ctx.tree.rootNode, (n) => {
-      if (n.type !== 'variable_declarator') return;
+    ctx.nodesOfType('variable_declarator').forEach((n) => {
       const nameNode = n.childForFieldName('name');
       const value = n.childForFieldName('value');
       if (!nameNode || nameNode.type !== 'identifier') return;
@@ -73,8 +65,7 @@ export const vueRefMisuseRule: Rule = {
     if (refs.size === 0) return;
 
     // Pass 2: flag bare reassignments `x = ...` (but not `x.value = ...`).
-    walkAll(ctx.tree.rootNode, (n) => {
-      if (n.type !== 'assignment_expression') return;
+    ctx.nodesOfType('assignment_expression').forEach((n) => {
       const left = n.childForFieldName('left');
       if (!left || left.type !== 'identifier') return;
       if (!refs.has(left.text)) return;

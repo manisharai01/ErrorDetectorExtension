@@ -21,10 +21,13 @@
 import {
   Severity,
   nodeRange,
+  type Diagnostic,
   type Rule,
   type RuleContext,
+  type TextEdit,
   type TSNode
 } from '../types';
+import { enclosingJsFunction, isAsyncJsFunction, offsetAt } from '../util';
 
 /** Promise-returning globals worth flagging when called bare and unhandled. */
 const PROMISE_GLOBALS = new Set(['fetch']);
@@ -114,21 +117,25 @@ export const promiseSwallowingRule: Rule = {
     '`// ied-disable-next-line IED-L002`.'
   ].join('\n'),
 
+  nodeTypes: () => ['expression_statement'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
-      if (node.type === 'expression_statement') {
-        // The expression of the statement, unwrapping any leading await.
-        const expr = node.namedChild(0);
-        if (expr && expr.type === 'call_expression') {
-          inspectStatementCall(ctx, expr);
-        }
+    for (const node of ctx.nodesOfType('expression_statement')) {
+      // The expression of the statement, unwrapping any leading await.
+      const expr = node.namedChild(0);
+      if (expr && expr.type === 'call_expression') {
+        inspectStatementCall(ctx, expr);
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-    walk(ctx.tree.rootNode);
+    }
+  },
+
+  fixTitle: () => 'Add await',
+
+  // "Add await" — offered only when the call sits directly in an async function.
+  fix(diagnostic: Diagnostic, sourceCode: string): TextEdit[] | null {
+    if (diagnostic.data?.awaitable !== true) return null;
+    const at = offsetAt(sourceCode, diagnostic.range.start);
+    return [{ startIndex: at, endIndex: at, newText: 'await ' }];
   }
 };
 
@@ -166,10 +173,11 @@ function inspectStatementCall(ctx: RuleContext, call: TSNode): void {
   if (isAwaitedOrReturned(call)) return;
   if (hasHandlerInChain(call)) return;
 
+  const fn = enclosingJsFunction(call);
   ctx.report({
     message: `Promise from "${name}" is neither awaited nor handled with .then/.catch.`,
     severity: Severity.Warning,
     range: nodeRange(call),
-    data: { kind: 'unawaited-call', callee: name }
+    data: { kind: 'unawaited-call', callee: name, awaitable: !!fn && isAsyncJsFunction(fn) }
   });
 }

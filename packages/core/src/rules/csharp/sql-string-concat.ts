@@ -67,6 +67,8 @@ export const sqlStringConcatRule: Rule = {
     'or an ORM) so user input is never concatenated into the SQL text.'
   ].join('\n'),
 
+  nodeTypes: () => ['interpolated_string_expression', 'binary_expression'],
+
   run(ctx: RuleContext): void {
     const report = (node: TSNode): void => {
       if (ctx.isSuppressed(node.startPosition.row, 'IED-S019')) return;
@@ -77,7 +79,7 @@ export const sqlStringConcatRule: Rule = {
       });
     };
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType(['interpolated_string_expression', 'binary_expression'])) {
       // Shape 2: interpolated string with a SQL keyword and an interpolation.
       if (node.type === 'interpolated_string_expression') {
         const hasSql = SQL_KEYWORD.test(node.text);
@@ -106,12 +108,6 @@ export const sqlStringConcatRule: Rule = {
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

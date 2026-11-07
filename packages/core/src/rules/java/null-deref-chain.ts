@@ -66,36 +66,29 @@ export const nullDerefChainRule: Rule = {
     '`Optional` / a null-safe accessor.'
   ].join('\n'),
 
-  run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
-      if (CHAIN_NODES.has(node.type)) {
-        // Only report at the *top* of a chain: if our parent is itself a chain
-        // link that reaches us through its `object:` field, defer to it.
-        const parent = node.parent;
-        const isInnerLink =
-          parent != null &&
-          CHAIN_NODES.has(parent.type) &&
-          parent.childForFieldName('object')?.id === node.id;
+  nodeTypes: () => [...CHAIN_NODES],
 
-        if (!isInnerLink && chainLength(node) >= MIN_LINKS) {
-          if (!ctx.isSuppressed(node.startPosition.row, 'IED-L015')) {
-            ctx.report({
-              message:
-                'Long dereference chain may NPE; check intermediate nulls.',
-              severity: Severity.Warning,
-              range: nodeRange(node),
-              data: { links: chainLength(node) }
-            });
-          }
+  run(ctx: RuleContext): void {
+    for (const node of ctx.nodesOfType([...CHAIN_NODES])) {
+      // Only report at the *top* of a chain: if our parent is itself a chain
+      // link that reaches us through its `object:` field, defer to it.
+      const parent = node.parent;
+      const isInnerLink =
+        parent != null &&
+        CHAIN_NODES.has(parent.type) &&
+        parent.childForFieldName('object')?.id === node.id;
+
+      if (!isInnerLink && chainLength(node) >= MIN_LINKS) {
+        if (!ctx.isSuppressed(node.startPosition.row, 'IED-L015')) {
+          ctx.report({
+            message:
+              'Long dereference chain may NPE; check intermediate nulls.',
+            severity: Severity.Warning,
+            range: nodeRange(node),
+            data: { links: chainLength(node) }
+          });
         }
       }
-
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

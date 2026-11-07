@@ -1,7 +1,7 @@
 /**
  * Code actions: for each `ied` diagnostic offer (a) the rule's auto-fix if it
  * has one, and (b) a "suppress on this line" action using the right comment
- * syntax for the language (`#` for Python, `//` otherwise).
+ * syntax for the language (`#` for Python/Ruby, `//` otherwise).
  */
 import { fileURLToPath } from 'url';
 import {
@@ -13,12 +13,8 @@ import {
   type WorkspaceEdit
 } from 'vscode-languageserver/node';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
-import { registry } from '@ied/core';
+import { registry, languageFromPath, suppressionComment } from '@ied/core';
 import type { IedSession } from './config';
-
-function commentPrefix(uri: string): string {
-  return uri.toLowerCase().endsWith('.py') ? '#' : '//';
-}
 
 export async function provideCodeActions(
   params: CodeActionParams,
@@ -55,7 +51,7 @@ export async function provideCodeActions(
         );
         const edit: WorkspaceEdit = { changes: { [doc.uri]: lspEdits } };
         actions.push({
-          title: `Fix: ${ruleId}`,
+          title: `${rule.fixTitle?.(core) ?? 'Fix'}: ${ruleId}`,
           kind: CodeActionKind.QuickFix,
           diagnostics: [lspDiag],
           isPreferred: true,
@@ -68,12 +64,10 @@ export async function provideCodeActions(
     const line = lspDiag.range.start.line;
     const lineText = doc.getText({ start: { line, character: 0 }, end: { line, character: 4096 } });
     const indent = /^\s*/.exec(lineText)?.[0] ?? '';
-    const prefix = commentPrefix(doc.uri);
+    const comment = suppressionComment(languageFromPath(fileURLToPath(doc.uri)), ruleId);
     const suppressEdit: WorkspaceEdit = {
       changes: {
-        [doc.uri]: [
-          LspTextEdit.insert({ line, character: 0 }, `${indent}${prefix} ied-disable-next-line ${ruleId}\n`)
-        ]
+        [doc.uri]: [LspTextEdit.insert({ line, character: 0 }, `${indent}${comment}\n`)]
       }
     };
     actions.push({

@@ -41,10 +41,12 @@ export const consoleWriteLineRule: Rule = {
     'Use a logger (`ILogger.LogInformation(...)`). Relaxed in test files.'
   ].join('\n'),
 
+  nodeTypes: () => ['invocation_expression'],
+
   run(ctx: RuleContext): void {
     if (ctx.isTestFile) return;
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('invocation_expression')) {
       if (node.type === 'invocation_expression') {
         const fn = node.childForFieldName('function');
         if (fn && fn.type === 'member_access_expression') {
@@ -68,12 +70,6 @@ export const consoleWriteLineRule: Rule = {
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

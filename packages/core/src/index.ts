@@ -50,6 +50,12 @@ export type { GrammarProfile } from './engine/grammar-profile';
 // ── Cross-file project analysis ───────────────────────────────────────────────
 export { findUnusedExports } from './engine/project-graph';
 export type { UnusedExport, ProjectFile } from './engine/project-graph';
+export { buildModuleGraph, findImportCycles, findBrokenImports, moduleKey } from './engine/module-graph';
+export type { ModuleInfo, ModuleImport, ImportCycle, BrokenImport } from './engine/module-graph';
+export { findDuplicateFunctions } from './engine/duplicates';
+export type { DuplicateGroup, DuplicateFunction, DuplicateOptions } from './engine/duplicates';
+export { runProjectChecks, PROJECT_RULES, PROJECT_CHECKS } from './engine/project-checks';
+export type { ProjectCheck, ProjectRule, ProjectReport, ProjectCheckOptions } from './engine/project-checks';
 
 // ── Scoring ───────────────────────────────────────────────────────────────────
 export { scoreFindings } from './engine/scoring';
@@ -87,8 +93,10 @@ export {
   analyzeSource,
   languageFromPath,
   looksLikeTestFile,
-  fingerprint
+  fingerprint,
+  SOURCE_EXTENSIONS
 } from './engine/analyzer';
+export { NodeIndex } from './engine/node-index';
 export type {
   FileInput,
   FileResult,
@@ -113,7 +121,7 @@ export { DiskCache, cacheKey, RULE_VERSION } from './engine/cache';
 export type { CacheEntry } from './engine/cache';
 
 // ── Suppressions ─────────────────────────────────────────────────────────────
-export { parseSuppressions, isSuppressed } from './engine/suppressions';
+export { parseSuppressions, isSuppressed, suppressionComment } from './engine/suppressions';
 export type { Suppressions } from './engine/suppressions';
 
 // ── Config ───────────────────────────────────────────────────────────────────

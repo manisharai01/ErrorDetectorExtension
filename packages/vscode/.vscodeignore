@@ -1,0 +1,17 @@
+# Everything the extension needs is bundled into dist/ and grammars/
+# (see scripts/bundle.js); ship only those plus the manifest and README.
+src/**
+test/**
+scripts/**
+node_modules/**
+tsconfig.json
+tsconfig.tsbuildinfo
+dist/**/*.map
+dist/**/*.d.ts
+dist/providers/**
+dist/views/**
+dist/config.js
+dist/languages.js
+dist/lsp-client.js
+dist/metrics.js
+**/*.vsix

@@ -55,8 +55,10 @@ export const emptyCatchRule: Rule = {
     'At minimum log the exception, or rethrow if you cannot handle it.'
   ].join('\n'),
 
+  nodeTypes: () => ['catch_clause'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('catch_clause')) {
       if (node.type === 'catch_clause') {
         const body = catchBody(node);
         if (body && isEmptyBlock(body)) {
@@ -70,12 +72,6 @@ export const emptyCatchRule: Rule = {
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

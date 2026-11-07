@@ -282,6 +282,29 @@ const RUBY_PROFILE: GrammarProfile = {
   commentNodes: ['comment']
 };
 
+const DART_PROFILE: GrammarProfile = {
+  stringNodes: ['string_literal'],
+  numberNodes: ['decimal_integer_literal', 'decimal_floating_point_literal', 'hex_integer_literal'],
+  nestingNodes: ['if_statement', 'for_statement', 'while_statement', 'do_statement', 'switch_statement', 'try_statement'],
+  complexityNodes: [
+    'if_statement',
+    'for_statement',
+    'while_statement',
+    'do_statement',
+    'switch_statement',
+    'catch_clause',
+    'conditional_expression'
+  ],
+  // Dart has dedicated node types for `&&` / `||` (like Python's boolean_operator).
+  booleanOpNodes: ['logical_and_expression', 'logical_or_expression'],
+  logicalOperators: [],
+  // A Dart method/function is a signature node plus a SIBLING body node, so the
+  // body is what carries the code: `function_body` for declarations,
+  // `function_expression_body` for closures.
+  functionNodes: ['function_body', 'function_expression_body'],
+  commentNodes: ['comment', 'documentation_comment']
+};
+
 export const GRAMMAR_PROFILES: Record<Language, GrammarProfile> = {
   javascript: JS,
   typescript: JS,
@@ -298,7 +321,8 @@ export const GRAMMAR_PROFILES: Record<Language, GrammarProfile> = {
   cpp: CPP,
   php: PHP_PROFILE,
   csharp: CSHARP,
-  ruby: RUBY_PROFILE
+  ruby: RUBY_PROFILE,
+  dart: DART_PROFILE
 };
 
 export function profileFor(language: Language): GrammarProfile {

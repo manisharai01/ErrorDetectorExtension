@@ -80,7 +80,7 @@ function explainSubcommand(): Command {
     .argument('<file>', 'source file to scan and explain')
     .option('--rule <id>', 'only explain findings for this rule id')
     .option('--max <n>', 'explain at most N findings', '5')
-    .option('--model <model>', 'Claude model id (default claude-opus-4-8 or config)')
+    .option('--model <model>', 'Claude model id (default claude-opus-5-5 or config)')
     .option('--api-key <key>', 'Anthropic API key (else ANTHROPIC_API_KEY / config)')
     .action(async (file: string, opts: CommonAiOptions & { rule?: string; max: string }) => {
       const { client, config } = await clientOrExit(opts);
@@ -158,7 +158,7 @@ function generateRuleSubcommand(): Command {
     .option('--language <lang>', 'target language hint (e.g. typescript, python)')
     .option('--id <ruleId>', 'rule id to assign (e.g. ACME-001)')
     .option('--output <file>', 'write the generated plugin module to a file')
-    .option('--model <model>', 'Claude model id (default claude-opus-4-8 or config)')
+    .option('--model <model>', 'Claude model id (default claude-opus-5-5 or config)')
     .option('--api-key <key>', 'Anthropic API key (else ANTHROPIC_API_KEY / config)')
     .action(
       async (

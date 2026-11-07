@@ -12,7 +12,14 @@
 import type { ResolvedConfig } from '@ied/core';
 
 /** Default Claude model when the user hasn't configured one. */
-export const DEFAULT_AI_MODEL = 'claude-opus-4-8';
+export const DEFAULT_AI_MODEL = 'claude-opus-5-5';
+
+/**
+ * Model the API retries on, inside the same call, if the default model
+ * declines a request on policy grounds (server-side refusal fallback). Only
+ * sent with the default model; a user-chosen model is called as-is.
+ */
+export const FALLBACK_AI_MODEL = 'claude-opus-4-8';
 
 export interface AiCompletion {
   text: string;
@@ -98,11 +105,14 @@ export async function createAiClient(settings: AiSettings): Promise<AiClient> {
   return {
     model,
     async complete(req: AiCompleteRequest): Promise<AiCompletion> {
-      const message = await anthropic.messages.create({
+      const message = await anthropic.beta.messages.create({
         model,
         max_tokens: req.maxTokens,
         system: req.system,
-        messages: [{ role: 'user', content: req.user }]
+        messages: [{ role: 'user', content: req.user }],
+        ...(model === DEFAULT_AI_MODEL
+          ? { betas: ['server-side-fallback-2026-06-01'], fallbacks: [{ model: FALLBACK_AI_MODEL }] }
+          : {})
       });
       const text = message.content
         .map((b) => (b.type === 'text' ? b.text : ''))

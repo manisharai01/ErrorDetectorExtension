@@ -14,6 +14,8 @@ node_modules/
 # VSCode extension packaging
 *.vsix
 .vscode-test/
+# grammar copies made by `npm run bundle -w packages/vscode`
+packages/vscode/grammars/
 
 # Environment & secrets
 .env

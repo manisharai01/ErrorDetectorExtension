@@ -48,8 +48,10 @@ export const notNullAssertionRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['postfix_expression'],
+
   run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('postfix_expression')) {
       if (node.type === 'postfix_expression') {
         // A postfix_expression is the `!!` form only when it has a direct
         // `!!` token child (other postfix operators do not exist in Kotlin,
@@ -70,12 +72,6 @@ export const notNullAssertionRule: Rule = {
           });
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

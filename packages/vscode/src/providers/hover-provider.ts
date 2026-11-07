@@ -1,16 +1,21 @@
 import * as vscode from 'vscode';
-import { registry, Severity } from '@ied/core';
+import { registry, Severity, PROJECT_RULES } from '@ied/core';
 import { DiagnosticProvider } from './diagnostic-provider';
 
 /**
  * Renders rule metadata, the diagnostic message, category, docs, and any
- * related locations inside a Markdown hover.
+ * related locations inside a Markdown hover. Covers per-file findings and the
+ * whole-program ones from "Check Project" (`IED-X…`).
  */
 export class HoverProvider implements vscode.HoverProvider {
-  constructor(private diagnostics: DiagnosticProvider) {}
+  private sources: DiagnosticProvider[];
+
+  constructor(...sources: DiagnosticProvider[]) {
+    this.sources = sources;
+  }
 
   provideHover(doc: vscode.TextDocument, pos: vscode.Position): vscode.Hover | undefined {
-    const issues = this.diagnostics.issuesFor(doc.uri.fsPath);
+    const issues = this.sources.flatMap(s => s.issuesFor(doc.uri.fsPath));
     const hits = issues.filter(d =>
       pos.line >= d.range.start.row && pos.line <= d.range.end.row
     );
@@ -35,6 +40,9 @@ export class HoverProvider implements vscode.HoverProvider {
 
       if (rule?.docs) {
         md.appendMarkdown(`${rule.docs}\n\n`);
+      } else {
+        const projectRule = PROJECT_RULES.find(r => r.id === hit.ruleId);
+        if (projectRule) md.appendMarkdown(`${projectRule.description}\n\n`);
       }
 
       if (hit.related && hit.related.length > 0) {

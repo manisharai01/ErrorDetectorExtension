@@ -3,8 +3,10 @@
  *
  * A rule is a plain object with metadata and a `run(context)` function that
  * inspects a Tree-sitter syntax tree and calls `context.report(...)` for each
- * finding. There is intentionally no visitor framework or plugin loader — a
- * rule is just a function with access to a query helper.
+ * finding. There is intentionally no visitor framework — a rule is just a
+ * function with access to a query helper and a shared node index
+ * (`context.nodesOfType`), which the engine fills in ONE traversal per file for
+ * every rule that declares its `nodeTypes`.
  */
 
 import type Parser from 'web-tree-sitter';
@@ -37,7 +39,8 @@ export type Language =
   | 'cpp'
   | 'php'
   | 'csharp'
-  | 'ruby';
+  | 'ruby'
+  | 'dart';
 
 export enum Severity {
   Error = 'error',
@@ -126,6 +129,14 @@ export interface RuleContext {
    * matches back. Compiled queries are cached per (language, pattern).
    */
   query: (pattern: string) => QueryMatch[];
+  /**
+   * Every node of the given type(s), in document order. Served from a per-file
+   * index that the engine builds in a single traversal for all the types rules
+   * declare in `Rule.nodeTypes`; an undeclared type still works but costs its
+   * own traversal. Prefer this over hand-walking the whole tree. The returned
+   * array is shared between rules — do not mutate it.
+   */
+  nodesOfType: (types: string | readonly string[]) => readonly TSNode[];
   /** Emit a finding. */
   report: (diagnostic: RuleDiagnostic) => void;
   /** User-provided options for this rule (the `options` object), never null. */
@@ -155,6 +166,12 @@ export interface Rule {
   description: string;
   /** Longer markdown explanation with examples, shown on hover. */
   docs: string;
+  /**
+   * Node types this rule will request through `context.nodesOfType` for a
+   * language. Declaring them lets the engine collect every rule's nodes in one
+   * shared traversal instead of one per rule.
+   */
+  nodeTypes?: (language: Language) => readonly string[];
   /** Analysis entry point. */
   run: (context: RuleContext) => void;
   /**
@@ -162,6 +179,8 @@ export interface Rule {
    * that resolve it, or null if it can't be auto-fixed.
    */
   fix?: (diagnostic: Diagnostic, sourceCode: string) => TextEdit[] | null;
+  /** Label for the editor quick fix (e.g. "Add await"); defaults to "Fix <id>". */
+  fixTitle?: (diagnostic: Diagnostic) => string;
 }
 
 /** Sentinel used in `languages` to mean "every language". */
@@ -181,7 +200,8 @@ export const ALL_LANGUAGES: Language[] = [
   'cpp',
   'php',
   'csharp',
-  'ruby'
+  'ruby',
+  'dart'
 ];
 
 /** True if `rule` applies to `language`. */

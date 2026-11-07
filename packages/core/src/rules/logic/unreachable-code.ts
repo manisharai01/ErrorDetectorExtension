@@ -41,6 +41,8 @@ export const unreachableCodeRule: Rule = {
     'in the same block never executes. Remove it or fix the control flow.'
   ].join('\n'),
 
+  nodeTypes: () => ['statement_block'],
+
   run(ctx: RuleContext): void {
     const checkBlock = (block: TSNode): void => {
       let terminated = false;
@@ -62,14 +64,6 @@ export const unreachableCodeRule: Rule = {
       }
     };
 
-    const walk = (node: TSNode): void => {
-      if (node.type === 'statement_block') checkBlock(node);
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    for (const block of ctx.nodesOfType('statement_block')) checkBlock(block);
   }
 };

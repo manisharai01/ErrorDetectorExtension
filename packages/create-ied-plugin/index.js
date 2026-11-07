@@ -53,22 +53,20 @@ const noDeprecatedGetUser = {
   languages: ['javascript', 'typescript'],
   description: 'Use UserService.findUser() instead of the deprecated getUser().',
   docs: 'getUser() is deprecated; migrate to findUser().',
+  // Node types this rule reads via ctx.nodesOfType — the engine collects every
+  // rule's types in ONE traversal of the file, so declaring them keeps scans fast.
+  nodeTypes: () => ['call_expression'],
   run(ctx) {
-    // Tree-sitter query: a member call \`X.getUser(...)\`.
-    const matches = ctx.query(\`
-      (call_expression
-        function: (member_expression
-          property: (property_identifier) @method)
-        (#eq? @method "getUser")) @call
-    \`);
-    for (const m of matches) {
-      const call = m.captures.find((c) => c.name === 'call');
-      if (!call) continue;
-      const n = call.node;
+    // A member call \`X.getUser(...)\`. (ctx.query(...) also accepts Tree-sitter
+    // query patterns, at the cost of its own pass over the tree.)
+    for (const call of ctx.nodesOfType('call_expression')) {
+      const fn = call.childForFieldName('function');
+      if (!fn || fn.type !== 'member_expression') continue;
+      if (fn.childForFieldName('property')?.text !== 'getUser') continue;
       ctx.report({
         message: 'getUser() is deprecated — use findUser().',
         severity: 'warning',
-        range: { start: n.startPosition, end: n.endPosition }
+        range: { start: call.startPosition, end: call.endPosition }
       });
     }
   }

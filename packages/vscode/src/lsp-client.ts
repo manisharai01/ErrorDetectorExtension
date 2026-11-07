@@ -4,6 +4,8 @@
  * diagnostics, code actions, and hovers — instead of analyzing in-process.
  * Used for parity testing and for sharing one engine with other editors.
  */
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import {
   LanguageClient,
@@ -11,28 +13,28 @@ import {
   type LanguageClientOptions,
   type ServerOptions
 } from 'vscode-languageclient/node';
+import { DOCUMENT_SELECTOR } from './languages';
 
 let client: LanguageClient | undefined;
 
-const DOCUMENT_SELECTOR = [
-  'javascript',
-  'javascriptreact',
-  'typescript',
-  'typescriptreact',
-  'vue',
-  'python',
-  'go'
-].map((language) => ({ scheme: 'file', language }));
+/**
+ * The server entry: the copy bundled into the packaged extension
+ * (`dist/server.js`), or the @ied/lsp workspace package when running from the
+ * monorepo (F5).
+ */
+function serverModulePath(context: vscode.ExtensionContext): string {
+  const bundled = context.asAbsolutePath(path.join('dist', 'server.js'));
+  return fs.existsSync(bundled) ? bundled : require.resolve('@ied/lsp');
+}
 
 export function startLspClient(context: vscode.ExtensionContext): void {
-  // Resolve the compiled server entry from the @ied/lsp package.
-  const serverModule = require.resolve('@ied/lsp');
+  const serverModule = serverModulePath(context);
   const serverOptions: ServerOptions = {
     run: { module: serverModule, transport: TransportKind.stdio, args: ['--stdio'] },
     debug: { module: serverModule, transport: TransportKind.stdio, args: ['--stdio'] }
   };
   const clientOptions: LanguageClientOptions = {
-    documentSelector: DOCUMENT_SELECTOR
+    documentSelector: [...DOCUMENT_SELECTOR]
   };
 
   client = new LanguageClient(

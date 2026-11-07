@@ -41,11 +41,13 @@ export const openWithoutContextRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['assignment'],
+
   run(ctx: RuleContext): void {
     // We only flag `open()` calls that are the RHS of an assignment. Calls used
     // as the context expression of a `with` statement are nested inside
     // with_item/as_pattern, never an `assignment`, so they are naturally excluded.
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('assignment')) {
       if (node.type === 'assignment') {
         const right = node.childForFieldName('right');
         if (right && isOpenCall(right)) {
@@ -58,11 +60,6 @@ export const openWithoutContextRule: Rule = {
           }
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const c = node.child(i);
-        if (c) walk(c);
-      }
-    };
-    walk(ctx.tree.rootNode);
+    }
   }
 };

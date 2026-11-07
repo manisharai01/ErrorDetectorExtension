@@ -4,6 +4,7 @@ import * as fs from 'fs';
 
 import {
   registerAllRules,
+  runProjectChecks,
   Analyzer,
   Severity,
   Diagnostic,
@@ -13,6 +14,7 @@ import {
 } from '@ied/core';
 
 import { loadConfig, onConfigChange, ExtensionConfig } from './config';
+import { DOCUMENT_SELECTOR, SOURCE_GLOB, excludeGlob, iedLanguageFor } from './languages';
 import { Metrics } from './metrics';
 import { DiagnosticProvider } from './providers/diagnostic-provider';
 import { CodeActionProvider } from './providers/code-action-provider';
@@ -22,15 +24,7 @@ import { StatusBar } from './views/status-bar';
 import { DashboardPanel } from './views/webview-panel';
 import { startLspClient, stopLspClient } from './lsp-client';
 
-const SUPPORTED_LANGS = [
-  'javascript',
-  'javascriptreact',
-  'typescript',
-  'typescriptreact',
-  'vue',
-  'python',
-  'go'
-];
+const SELECTOR = DOCUMENT_SELECTOR as vscode.DocumentSelector;
 
 let activeAnalyzer: Analyzer | undefined;
 let lspMode = false;
@@ -53,6 +47,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const metrics = new Metrics();
   const diagnostics = new DiagnosticProvider();
+  // Whole-program findings (cycles, broken imports, …) live in their own
+  // collection so re-analysing a file on save does not wipe them.
+  const projectDiagnostics = new DiagnosticProvider('invisibleErrors.project');
   const treeProvider = new IssueTreeProvider(diagnostics);
   const statusBar = new StatusBar(metrics, diagnostics);
 
@@ -61,19 +58,25 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   context.subscriptions.push(
     diagnostics,
+    projectDiagnostics,
     statusBar,
     vscode.window.registerTreeDataProvider('invisibleErrors.issues', treeProvider),
-    vscode.languages.registerCodeActionsProvider(SUPPORTED_LANGS, new CodeActionProvider(metrics, diagnostics)),
-    vscode.languages.registerHoverProvider(SUPPORTED_LANGS, new HoverProvider(diagnostics))
+    vscode.languages.registerCodeActionsProvider(SELECTOR, new CodeActionProvider(metrics, diagnostics)),
+    vscode.languages.registerHoverProvider(SELECTOR, new HoverProvider(diagnostics, projectDiagnostics))
   );
+
+  /** Workspace files the engine can analyze, honouring `invisibleErrors.exclude`. */
+  const workspaceFiles = (): Thenable<vscode.Uri[]> =>
+    vscode.workspace.findFiles(SOURCE_GLOB, excludeGlob(config.exclude));
 
   const analyzeDoc = async (doc: vscode.TextDocument, _token?: vscode.CancellationToken): Promise<Diagnostic[]> => {
     if (!config.enable) return [];
-    if (!SUPPORTED_LANGS.includes(doc.languageId)) return [];
+    const language = iedLanguageFor(doc);
+    if (!language) return [];
     const text = doc.getText();
     if (text.length > config.maxFileSize) return [];
 
-    const r = await analyzer.analyzeFile({ filePath: doc.fileName, content: text });
+    const r = await analyzer.analyzeFile({ filePath: doc.fileName, content: text, language });
 
     const errors = r.diagnostics.filter(d => d.severity === Severity.Error).length;
     const warnings = r.diagnostics.filter(d => d.severity === Severity.Warning).length;
@@ -132,10 +135,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         { location: vscode.ProgressLocation.Notification, title: 'Invisible Errors: analysing workspace…', cancellable: true },
         async (progress, progressToken) => {
           progressToken.onCancellationRequested(() => cancelToken?.cancel());
-          const files = await vscode.workspace.findFiles(
-            '**/*.{js,jsx,ts,tsx,vue,py,go}',
-            '{**/node_modules/**,**/dist/**,**/out/**,**/build/**}'
-          );
+          const files = await workspaceFiles();
           let i = 0;
           for (const uri of files) {
             if (tk.isCancellationRequested) return;
@@ -150,10 +150,37 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       );
       DashboardPanel.show(context, metrics, diagnostics);
     }),
+    vscode.commands.registerCommand('invisibleErrors.checkProject', async () => {
+      const report = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: 'Invisible Errors: checking the project (cycles, imports, duplicates)…' },
+        async () => {
+          const files: Array<{ filePath: string; content: string }> = [];
+          for (const uri of await workspaceFiles()) {
+            try {
+              files.push({ filePath: uri.fsPath, content: Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8') });
+            } catch { /* skip unreadable */ }
+          }
+          return runProjectChecks(files);
+        }
+      );
+      projectDiagnostics.clear();
+      const byFile = new Map<string, Diagnostic[]>();
+      for (const d of report.diagnostics) {
+        const list = byFile.get(d.filePath) ?? [];
+        list.push(d);
+        byFile.set(d.filePath, list);
+      }
+      for (const [file, list] of byFile) projectDiagnostics.set(file, list);
+      vscode.window.showInformationMessage(
+        `Invisible Errors: ${report.cycles.length} import cycle(s), ${report.brokenImports.length} broken import(s), ` +
+          `${report.duplicates.length} duplicate group(s), ${report.unusedExports.length} unused export(s). See the Problems panel.`
+      );
+    }),
     vscode.commands.registerCommand('invisibleErrors.cancelAnalysis', () => cancelToken?.cancel()),
     vscode.commands.registerCommand('invisibleErrors.clearCache', () => {
       metrics.clear();
       diagnostics.clear();
+      projectDiagnostics.clear();
       treeProvider.refresh();
       statusBar.refresh();
       vscode.window.showInformationMessage('Invisible Errors: cache cleared.');
@@ -162,7 +189,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('invisibleErrors.exportReport', async () => {
       const choice = await vscode.window.showQuickPick(['JSON', 'HTML', 'SARIF'], { placeHolder: 'Select report format' });
       if (!choice) return;
-      const issues = diagnostics.allIssues();
+      const issues = [...diagnostics.allIssues(), ...projectDiagnostics.allIssues()];
       const ext = choice === 'JSON' ? 'json' : choice === 'HTML' ? 'html' : 'sarif';
       const content = choice === 'JSON' ? toJson(issues)
         : choice === 'HTML' ? toHtml(issues, { score: metrics.qualityScore() })

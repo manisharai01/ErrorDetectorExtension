@@ -41,10 +41,12 @@ export const dbgMacroRule: Rule = {
     'intend to keep. Relaxed inside test files.'
   ].join('\n'),
 
+  nodeTypes: () => ['macro_invocation'],
+
   run(ctx: RuleContext): void {
     if (ctx.isTestFile) return;
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('macro_invocation')) {
       if (node.type === 'macro_invocation') {
         const macro = node.childForFieldName('macro');
         if (macro && macro.type === 'identifier' && macro.text === 'dbg') {
@@ -57,12 +59,6 @@ export const dbgMacroRule: Rule = {
           }
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

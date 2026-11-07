@@ -1,35 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { SOURCE_EXTENSIONS } from '@ied/core';
 import type { ResolvedConfig } from '@ied/core';
 
-export const SOURCE_EXTS = new Set([
-  '.js',
-  '.jsx',
-  '.mjs',
-  '.cjs',
-  '.ts',
-  '.tsx',
-  '.vue',
-  '.py',
-  '.pyi',
-  '.go',
-  '.rs',
-  '.java',
-  '.kt',
-  '.kts',
-  '.swift',
-  '.c',
-  '.h',
-  '.cpp',
-  '.cc',
-  '.cxx',
-  '.hpp',
-  '.hh',
-  '.hxx',
-  '.php',
-  '.cs',
-  '.rb'
-]);
+/** Every extension the engine can analyze (single source of truth in @ied/core). */
+export const SOURCE_EXTS: ReadonlySet<string> = new Set(SOURCE_EXTENSIONS);
 
 /**
  * Walk the given input paths and return the list of source files to analyze,
@@ -72,7 +47,7 @@ export function collectFiles(
     }
 
     if (!stat.isFile()) return;
-    if (!SOURCE_EXTS.has(path.extname(target))) return;
+    if (!SOURCE_EXTS.has(path.extname(target).toLowerCase())) return;
     if (relPath && ignore.isIgnored(relPath, false)) return;
     const abs = path.resolve(target);
     if (seen.has(abs)) return;

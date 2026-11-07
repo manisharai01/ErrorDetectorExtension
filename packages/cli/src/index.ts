@@ -8,11 +8,20 @@ import { ciCommentCommand } from './commands/ci-comment';
 import { unusedExportsCommand } from './commands/unused-exports';
 import { aiCommand } from './commands/ai';
 import { hotspotsCommand } from './commands/hotspots';
+import {
+  projectCommand,
+  cyclesCommand,
+  brokenImportsCommand,
+  duplicatesCommand
+} from './commands/project';
 
 const program = new Command();
 program
   .name('ied')
-  .description('Invisible Errors Detector — static analysis for JS/TS/Vue/Python/Go')
+  .description(
+    'Invisible Errors Detector — finds the bugs linters miss in JS/TS/Vue, Python, Go, Rust, Java, ' +
+      'Kotlin, Swift, C/C++, PHP, C#, Ruby and Dart'
+  )
   .version('0.1.0');
 program.addCommand(scanCommand());
 program.addCommand(rulesCommand());
@@ -22,4 +31,8 @@ program.addCommand(ciCommentCommand());
 program.addCommand(unusedExportsCommand());
 program.addCommand(aiCommand());
 program.addCommand(hotspotsCommand());
+program.addCommand(projectCommand());
+program.addCommand(cyclesCommand());
+program.addCommand(brokenImportsCommand());
+program.addCommand(duplicatesCommand());
 program.parseAsync(process.argv).catch((err) => { console.error(err); process.exit(2); });

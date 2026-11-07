@@ -89,6 +89,8 @@ export const sqlInjectionRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['member_call_expression', 'assignment_expression'],
+
   run(ctx: RuleContext): void {
     const seen = new Set<string>();
 
@@ -106,7 +108,7 @@ export const sqlInjectionRule: Rule = {
       });
     };
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType(['member_call_expression', 'assignment_expression'])) {
       // db call: $db->query(<tainted>) / ->exec / ->prepare
       if (node.type === 'member_call_expression') {
         const name = node.childForFieldName('name');
@@ -131,12 +133,6 @@ export const sqlInjectionRule: Rule = {
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

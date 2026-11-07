@@ -20,6 +20,7 @@ import './python.test';
 import './go.test';
 import './data-flow.test';
 import './project-graph.test';
+import './module-graph.test';
 import './policy.test';
 import './rust.test';
 import './java.test';
@@ -29,6 +30,8 @@ import './c-family.test';
 import './php.test';
 import './csharp.test';
 import './ruby.test';
+import './dart.test';
+import './flow.test';
 import './plugin-loader.test';
 import './hotspots.test';
 

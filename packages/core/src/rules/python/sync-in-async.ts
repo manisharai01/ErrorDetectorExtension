@@ -13,6 +13,7 @@ import {
   type RuleContext,
   type TSNode
 } from '../types';
+import { EnclosingStack, spanOf } from '../util';
 
 // object name -> set of blocking attribute methods on it
 const BLOCKING_ATTRS: Record<string, Set<string>> = {
@@ -52,6 +53,8 @@ export const syncInAsyncRule: Rule = {
     'Use `aiohttp`/`httpx`, `await asyncio.sleep(...)`, or run_in_executor.'
   ].join('\n'),
 
+  nodeTypes: () => ['function_definition', 'lambda', 'call'],
+
   run(ctx: RuleContext): void {
     const flag = (node: TSNode, what: string): void => {
       if (ctx.isSuppressed(node.startPosition.row, 'IED-C007')) return;
@@ -63,10 +66,31 @@ export const syncInAsyncRule: Rule = {
       });
     };
 
-    const scanBody = (node: TSNode): void => {
-      // Don't descend into nested function definitions — they have their own scope.
-      if (node.type === 'function_definition' || node.type === 'lambda') return;
-      if (node.type === 'call') {
+    // Each call belongs to its innermost function (a nested def or lambda has
+    // its own scope); only calls in the BODY of an async def are checked.
+    // Findings are emitted grouped per async def, in definition order.
+    interface Scope {
+      body: { start: number; end: number } | null;
+      calls: TSNode[];
+    }
+    const asyncDefs: Scope[] = [];
+    const scopes = new EnclosingStack<Scope>();
+    for (const node of ctx.nodesOfType(['function_definition', 'lambda', 'call'])) {
+      scopes.at(spanOf(node));
+      if (node.type !== 'call') {
+        const body = isAsyncDef(node) ? node.childForFieldName('body') : null;
+        const scope: Scope = { body: body ? { start: body.startIndex, end: body.endIndex } : null, calls: [] };
+        if (scope.body) asyncDefs.push(scope);
+        scopes.push(spanOf(node), scope);
+        continue;
+      }
+      const scope = scopes.innermost();
+      if (!scope?.body || node.startIndex < scope.body.start || node.endIndex > scope.body.end) continue;
+      scope.calls.push(node);
+    }
+
+    for (const { calls } of asyncDefs) {
+      for (const node of calls) {
         const fn = node.childForFieldName('function');
         if (fn && fn.type === 'attribute') {
           const obj = fn.childForFieldName('object');
@@ -79,22 +103,6 @@ export const syncInAsyncRule: Rule = {
           flag(node, `${fn.text}()`);
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const c = node.child(i);
-        if (c) scanBody(c);
-      }
-    };
-
-    const walk = (node: TSNode): void => {
-      if (isAsyncDef(node)) {
-        const body = node.childForFieldName('body');
-        if (body) scanBody(body);
-      }
-      for (let i = 0; i < node.childCount; i++) {
-        const c = node.child(i);
-        if (c) walk(c);
-      }
-    };
-    walk(ctx.tree.rootNode);
+    }
   }
 };

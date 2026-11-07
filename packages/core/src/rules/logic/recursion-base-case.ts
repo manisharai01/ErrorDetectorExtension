@@ -31,10 +31,7 @@ function callsItself(body: TSNode, name: string): boolean {
 
 /** True if the body has any if_statement or ternary_expression guard. */
 function hasGuard(body: TSNode): boolean {
-  return (
-    body.descendantsOfType('if_statement').length > 0 ||
-    body.descendantsOfType('ternary_expression').length > 0
-  );
+  return body.descendantsOfType(['if_statement', 'ternary_expression']).length > 0;
 }
 
 export const recursionBaseCaseRule: Rule = {
@@ -57,31 +54,22 @@ export const recursionBaseCaseRule: Rule = {
     'Add a guarded early return as the base case.'
   ].join('\n'),
 
-  run(ctx: RuleContext): void {
-    const walk = (node: TSNode): void => {
-      if (node.type === 'function_declaration') {
-        const nameNode = node.childForFieldName('name');
-        const body = node.childForFieldName('body');
-        if (nameNode && body && nameNode.type === 'identifier') {
-          const name = nameNode.text;
-          if (callsItself(body, name) && !hasGuard(body)) {
-            if (!ctx.isSuppressed(nameNode.startPosition.row, 'IED-L006')) {
-              ctx.report({
-                message: `Function "${name}" recurses but has no guarded base case (if/ternary + return).`,
-                severity: Severity.Warning,
-                range: nodeRange(nameNode),
-                data: { function: name }
-              });
-            }
-          }
-        }
-      }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
+  nodeTypes: () => ['function_declaration'],
 
-    walk(ctx.tree.rootNode);
+  run(ctx: RuleContext): void {
+    for (const node of ctx.nodesOfType('function_declaration')) {
+      const nameNode = node.childForFieldName('name');
+      const body = node.childForFieldName('body');
+      if (!nameNode || !body || nameNode.type !== 'identifier') continue;
+      const name = nameNode.text;
+      if (!callsItself(body, name) || hasGuard(body)) continue;
+      if (ctx.isSuppressed(nameNode.startPosition.row, 'IED-L006')) continue;
+      ctx.report({
+        message: `Function "${name}" recurses but has no guarded base case (if/ternary + return).`,
+        severity: Severity.Warning,
+        range: nodeRange(nameNode),
+        data: { function: name }
+      });
+    }
   }
 };

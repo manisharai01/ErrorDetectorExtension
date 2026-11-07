@@ -9,7 +9,6 @@
 
 import {
   Severity,
-  capture,
   nodeRange,
   type Rule,
   type RuleContext
@@ -36,21 +35,18 @@ export const innerHtmlRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['assignment_expression'],
+
   run(ctx: RuleContext): void {
     // Relax when a sanitiser is visibly in scope, matching the original rule.
     const sanitisedInScope = /\bDOMPurify\b|\bsanitize(?:Html)?\b/i.test(ctx.sourceCode);
     if (sanitisedInScope) return;
 
-    const matches = ctx.query(`
-      (assignment_expression
-        left: (member_expression
-          property: (property_identifier) @prop)) @assign
-    `);
-
-    for (const m of matches) {
-      const prop = capture(m, 'prop');
-      const assign = capture(m, 'assign');
-      if (!prop || !assign) continue;
+    for (const assign of ctx.nodesOfType('assignment_expression')) {
+      const left = assign.childForFieldName('left');
+      if (!left || left.type !== 'member_expression') continue;
+      const prop = left.childForFieldName('property');
+      if (!prop || prop.type !== 'property_identifier') continue;
       if (!HTML_SINKS.has(prop.text)) continue;
       if (ctx.isSuppressed(assign.startPosition.row, 'IED-S003')) continue;
       ctx.report({

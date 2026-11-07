@@ -7,17 +7,29 @@
  * logging facility. Relaxed inside test files.
  *
  * (IED-Q013 is already taken, hence Q016.)
+ *
+ * Reads calls (and, in C++, binary expressions) from the shared node index in
+ * document order.
  */
 
 import {
   Severity,
   nodeRange,
+  type Language,
   type Rule,
   type RuleContext,
   type TSNode
 } from '../types';
 
 const DEBUG_CALLS = new Set(['printf', 'puts']);
+
+/**
+ * Indexed node types. A `std::cout` chain needs a `qualified_identifier`, which
+ * only the C++ grammar has, so in C only calls can match.
+ */
+function indexedTypes(language: Language): string[] {
+  return language === 'cpp' ? ['call_expression', 'binary_expression'] : ['call_expression'];
+}
 
 function calleeName(call: TSNode): string | null {
   const fn = call.childForFieldName('function');
@@ -68,6 +80,8 @@ export const printfLeftRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: indexedTypes,
+
   run(ctx: RuleContext): void {
     if (ctx.isTestFile) return;
 
@@ -81,7 +95,7 @@ export const printfLeftRule: Rule = {
       });
     };
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType(indexedTypes(ctx.language))) {
       if (node.type === 'call_expression') {
         const name = calleeName(node);
         if (name && DEBUG_CALLS.has(name)) {
@@ -89,7 +103,7 @@ export const printfLeftRule: Rule = {
         } else if (name === 'fprintf' && firstArgName(node) === 'stderr') {
           report(node, 'fprintf');
         }
-      } else if (node.type === 'binary_expression' && isCoutStream(node)) {
+      } else if (isCoutStream(node)) {
         // Only report the outermost `<<` chain, not each nested binary_expression.
         const parent = node.parent;
         const parentIsChain =
@@ -97,13 +111,6 @@ export const printfLeftRule: Rule = {
           parent.childForFieldName('operator')?.text === '<<';
         if (!parentIsChain) report(node, 'std::cout');
       }
-
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

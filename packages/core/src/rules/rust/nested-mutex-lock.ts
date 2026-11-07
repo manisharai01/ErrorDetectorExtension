@@ -70,6 +70,8 @@ export const nestedMutexLockRule: Rule = {
     'not tracked, so this is conservative.'
   ].join('\n'),
 
+  nodeTypes: () => ['function_item', 'closure_expression'],
+
   run(ctx: RuleContext): void {
     // Find every function body, then analyse lock calls within it in isolation
     // so locks in unrelated functions never interact.
@@ -119,19 +121,13 @@ export const nestedMutexLockRule: Rule = {
       }
     };
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType(['function_item', 'closure_expression'])) {
       if (node.type === 'function_item' || node.type === 'closure_expression') {
         const body = node.childForFieldName('body');
         if (body && body.type === 'block') {
           analyzeFunction(body);
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

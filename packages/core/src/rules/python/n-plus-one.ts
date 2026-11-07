@@ -53,40 +53,33 @@ export const nPlusOneQueryRule: Rule = {
     '```'
   ].join('\n'),
 
+  nodeTypes: () => ['for_statement', 'call'],
+
   run(ctx: RuleContext): void {
-    const walkInLoop = (node: TSNode): void => {
-      if (node.type === 'call') {
-        const { method, hasObjects } = describeCallee(node);
-        if (method && (hasObjects || QUERY_METHODS.has(method))) {
-          if (!ctx.isSuppressed(node.startPosition.row, 'IED-P007')) {
-            ctx.report({
-              message: `Query \`.${method}(...)\` runs inside a loop (possible N+1). Batch it into a single query.`,
-              severity: Severity.Warning,
-              range: nodeRange(node),
-              data: { method }
-            });
-          }
+    // Bodies of the loops around the current node (a call in a loop's header —
+    // `for x in Model.objects.all():` — is not inside that loop's body).
+    const bodies: Array<{ start: number; end: number }> = [];
+    for (const node of ctx.nodesOfType(['for_statement', 'call'])) {
+      const start = node.startIndex;
+      while (bodies.length > 0 && bodies[bodies.length - 1].end <= start) bodies.pop();
+      if (node.type === 'for_statement') {
+        const body = node.childForFieldName('body');
+        if (body) bodies.push({ start: body.startIndex, end: body.endIndex });
+        continue;
+      }
+      const end = node.endIndex;
+      if (!bodies.some((b) => b.start <= start && end <= b.end)) continue;
+      const { method, hasObjects } = describeCallee(node);
+      if (method && (hasObjects || QUERY_METHODS.has(method))) {
+        if (!ctx.isSuppressed(node.startPosition.row, 'IED-P007')) {
+          ctx.report({
+            message: `Query \`.${method}(...)\` runs inside a loop (possible N+1). Batch it into a single query.`,
+            severity: Severity.Warning,
+            range: nodeRange(node),
+            data: { method }
+          });
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const c = node.child(i);
-        if (c) walkInLoop(c);
-      }
-    };
-
-    const walk = (node: TSNode): void => {
-      if (node.type === 'for_statement') {
-        // Handle the whole subtree of the outermost loop here; nested loops are
-        // already covered by walkInLoop, so don't recurse past this point.
-        const body = node.childForFieldName('body');
-        if (body) walkInLoop(body);
-        return;
-      }
-      for (let i = 0; i < node.childCount; i++) {
-        const c = node.child(i);
-        if (c) walk(c);
-      }
-    };
-    walk(ctx.tree.rootNode);
+    }
   }
 };

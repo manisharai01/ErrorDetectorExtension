@@ -23,18 +23,6 @@ const DEFAULT_ANY_THRESHOLD = 5;
 /** Type targets that make an `as` cast safe (no type-system escape). */
 const SAFE_AS_TYPES = new Set(['const', 'unknown']);
 
-/** Walk every node in the tree, invoking `fn` on each. */
-function walkTree(root: TSNode, fn: (n: TSNode) => void): void {
-  const walk = (node: TSNode): void => {
-    fn(node);
-    for (let i = 0; i < node.childCount; i++) {
-      const child = node.child(i);
-      if (child) walk(child);
-    }
-  };
-  walk(root);
-}
-
 /**
  * For an `as_expression` or `type_assertion`, return the text of the asserted
  * type, e.g. `Foo`, `const`, `unknown`. `as_expression` children are
@@ -84,9 +72,10 @@ export const unsafeAsRule: Rule = {
     '`// ied-disable-next-line IED-T001`.'
   ].join('\n'),
 
+  nodeTypes: () => ['as_expression', 'type_assertion'],
+
   run(ctx: RuleContext): void {
-    walkTree(ctx.tree.rootNode, (node) => {
-      if (node.type !== 'as_expression' && node.type !== 'type_assertion') return;
+    ctx.nodesOfType(['as_expression', 'type_assertion']).forEach((node) => {
       const typeText = assertedTypeText(node);
       if (SAFE_AS_TYPES.has(typeText)) return;
       if (ctx.isSuppressed(node.startPosition.row, 'IED-T001')) return;
@@ -121,13 +110,15 @@ export const anyTypeRule: Rule = {
     '`{ "options": { "threshold": 5 } }` (used only for the data bag).'
   ].join('\n'),
 
+  nodeTypes: () => ['predefined_type'],
+
   run(ctx: RuleContext): void {
     const threshold =
       typeof ctx.config.threshold === 'number' ? ctx.config.threshold : DEFAULT_ANY_THRESHOLD;
 
     const hits: TSNode[] = [];
-    walkTree(ctx.tree.rootNode, (node) => {
-      if (node.type === 'predefined_type' && node.text === 'any') hits.push(node);
+    ctx.nodesOfType('predefined_type').forEach((node) => {
+      if (node.text === 'any') hits.push(node);
     });
 
     for (const node of hits) {
@@ -163,9 +154,10 @@ export const nonNullAssertionRule: Rule = {
     '`// ied-disable-next-line IED-T003`.'
   ].join('\n'),
 
+  nodeTypes: () => ['non_null_expression'],
+
   run(ctx: RuleContext): void {
-    walkTree(ctx.tree.rootNode, (node) => {
-      if (node.type !== 'non_null_expression') return;
+    ctx.nodesOfType('non_null_expression').forEach((node) => {
       if (ctx.isSuppressed(node.startPosition.row, 'IED-T003')) return;
       ctx.report({
         message: 'Non-null assertion `!` — verify the value cannot be null/undefined.',

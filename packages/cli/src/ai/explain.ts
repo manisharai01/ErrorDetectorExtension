@@ -70,7 +70,7 @@ export async function explainFinding(client: AiClient, input: ExplainInput): Pro
   const { text } = await client.complete({
     system: SYSTEM,
     user: buildExplainPrompt(input),
-    maxTokens: 1024
+    maxTokens: 16000
   });
   return parseExplanation(text);
 }

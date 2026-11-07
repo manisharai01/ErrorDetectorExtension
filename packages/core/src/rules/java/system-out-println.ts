@@ -50,10 +50,12 @@ export const systemOutPrintlnRule: Rule = {
     'Use a logger (e.g. SLF4J `log.info(...)`). Relaxed in test files.'
   ].join('\n'),
 
+  nodeTypes: () => ['method_invocation'],
+
   run(ctx: RuleContext): void {
     if (ctx.isTestFile) return;
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('method_invocation')) {
       if (node.type === 'method_invocation') {
         const name = node.childForFieldName('name')?.text;
         const object = node.childForFieldName('object');
@@ -69,12 +71,6 @@ export const systemOutPrintlnRule: Rule = {
         }
       }
 
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

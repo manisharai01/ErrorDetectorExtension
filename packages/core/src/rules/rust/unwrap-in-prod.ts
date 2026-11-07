@@ -49,10 +49,12 @@ export const unwrapInProdRule: Rule = {
     'Relaxed inside test files, where unwrapping the happy path is idiomatic.'
   ].join('\n'),
 
+  nodeTypes: () => ['call_expression'],
+
   run(ctx: RuleContext): void {
     if (ctx.isTestFile) return;
 
-    const walk = (node: TSNode): void => {
+    for (const node of ctx.nodesOfType('call_expression')) {
       if (node.type === 'call_expression') {
         const fn = node.childForFieldName('function');
         if (fn && fn.type === 'field_expression') {
@@ -73,12 +75,6 @@ export const unwrapInProdRule: Rule = {
           }
         }
       }
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child) walk(child);
-      }
-    };
-
-    walk(ctx.tree.rootNode);
+    }
   }
 };

@@ -34,7 +34,7 @@ export interface AiConfig {
    * committing a key to `.iedrc.json`.
    */
   apiKey?: string;
-  /** Claude model id. Defaults to `claude-opus-4-8` when unset. */
+  /** Claude model id. Defaults to `claude-opus-5-5` when unset. */
   model?: string;
 }
 
