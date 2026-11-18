@@ -14,8 +14,10 @@
  *   - object usage: reading a property that no array has (`x.items`), not a
  *     method call and not `length`/`size`.
  *
- * Library namespaces (`_`, `$`, capitalised names) and `this` are skipped.
- * Each variable is reported once per function, at its first object-style use.
+ * Library namespaces (`_`, `$`, capitalised names) and `this` are skipped, as
+ * is a variable the function tests with `Array.isArray(x)` (it handles both
+ * shapes on purpose). Each variable is reported once per function, at its first
+ * object-style use.
  */
 
 import {
@@ -78,6 +80,12 @@ interface Usage {
   arrayVia: string | null;
   objectAt: TSNode | null;
   objectProp: string | null;
+  /** The function tests `Array.isArray(name)`, so both shapes are expected. */
+  shapeChecked: boolean;
+}
+
+function newUsage(): Usage {
+  return { arrayVia: null, objectAt: null, objectProp: null, shapeChecked: false };
 }
 
 export const inconsistentUsageRule: Rule = {
@@ -123,9 +131,20 @@ export const inconsistentUsageRule: Rule = {
       const object = node.childForFieldName('object');
       if (!object || object.type !== 'identifier') continue;
       const name = object.text;
+
+      // `Array.isArray(x)`: the function deliberately handles both shapes of x.
+      if (name === 'Array' && node.childForFieldName('property')?.text === 'isArray') {
+        const checked = node.parent?.childForFieldName('arguments')?.namedChild(0);
+        if (checked?.type === 'identifier') {
+          const entry = usage.get(checked.text) ?? newUsage();
+          entry.shapeChecked = true;
+          usage.set(checked.text, entry);
+        }
+        continue;
+      }
       if (SKIPPED_NAMES.has(name) || /^[A-Z]/.test(name)) continue;
 
-      const entry = usage.get(name) ?? { arrayVia: null, objectAt: null, objectProp: null };
+      const entry = usage.get(name) ?? newUsage();
       if (node.type === 'subscript_expression') {
         if (node.childForFieldName('index')?.type === 'number') entry.arrayVia ??= `${name}[…]`;
       } else {
@@ -147,7 +166,7 @@ export const inconsistentUsageRule: Rule = {
 
     for (const usage of functions) {
       for (const [name, u] of usage) {
-        if (!u.arrayVia || !u.objectAt) continue;
+        if (!u.arrayVia || !u.objectAt || u.shapeChecked) continue;
         if (ctx.isSuppressed(u.objectAt.startPosition.row, 'IED-H003')) continue;
         ctx.report({
           message: `"${name}" is used as an array (${u.arrayVia}) and as an object (.${u.objectProp}) in this function — one of them is probably wrong.`,

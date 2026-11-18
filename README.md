@@ -23,7 +23,7 @@ Requires Node.js 18+ (20 recommended).
 ```sh
 npm ci            # install
 npm run build     # compile every package
-npm test          # 418 tests across core, CLI, LSP, dashboard and extension
+npm test          # 432 tests across core, CLI, LSP, dashboard and extension
 
 node packages/cli/bin/ied.js scan demo          # per-file findings
 node packages/cli/bin/ied.js project demo       # cycles, broken imports, duplicates, unused exports

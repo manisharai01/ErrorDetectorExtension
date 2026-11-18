@@ -100,6 +100,9 @@ export async function findUnusedExports(
               if (name) importedNames.add(name.text);
             }
           }
+        } else if (firstChildOfType(node, 'default')) {
+          // `export default function Page()` is imported by default-import name,
+          // which can be anything — never flag a default export.
         } else if (node.childForFieldName('declaration')) {
           for (const n of declarationNames(node.childForFieldName('declaration')!)) {
             exported.push({ filePath: file.filePath, name: n.text, node: n });

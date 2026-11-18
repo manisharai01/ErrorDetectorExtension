@@ -31,8 +31,8 @@ npm run build
 npm test
 ```
 
-**Check:** every package prints `… passed, 0 failed`: core 368, CLI 8 + 3 + 12,
-dashboard 11 + 8, LSP 1, extension 7. That is 418 tests in total.
+**Check:** every package prints `… passed, 0 failed`: core 382, CLI 8 + 3 + 12,
+dashboard 11 + 8, LSP 1, extension 7. That is 432 tests in total.
 
 ## 1. The headline: bugs a linter misses
 
@@ -249,7 +249,7 @@ rules need in a single traversal of each file, instead of one traversal per rule
 
 | Feature | Command | Expected |
 | --- | --- | --- |
-| Build and tests | `npm run build` and `npm test` | 418 tests pass, 0 fail |
+| Build and tests | `npm run build` and `npm test` | 432 tests pass, 0 fail |
 | Bugs linters miss | `ied scan demo/web/checkout.js` | 13 findings, including IED-L022, L021, H003, L023 |
 | All languages | `ied scan demo` | 116 findings (24 errors, 68 warnings, 24 info), 68 rules, 35 files |
 | Rule catalogue | `ied rules` | `101 rules` |

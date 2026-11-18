@@ -13,6 +13,8 @@ export interface ReportMetadata {
   branch: string;
   commit: string;
   timestamp: string;
+  /** Lines of code scanned; the dashboard scores findings per thousand lines. */
+  loc?: number;
 }
 
 export interface ReportPayload {
@@ -51,9 +53,11 @@ export function gatherMetadata(rootDir: string, timestamp: string): ReportMetada
 export function buildReportPayload(
   diagnostics: Diagnostic[],
   rootDir: string,
-  timestamp: string
+  timestamp: string,
+  loc?: number
 ): ReportPayload {
-  return { metadata: gatherMetadata(rootDir, timestamp), sarif: toSarif(diagnostics) };
+  const metadata = gatherMetadata(rootDir, timestamp);
+  return { metadata: loc !== undefined ? { ...metadata, loc } : metadata, sarif: toSarif(diagnostics) };
 }
 
 export interface HotspotPayload {

@@ -13,6 +13,7 @@ import {
   DiskCache,
   cacheKey,
   summarize,
+  scoreFindings,
   toJson,
   toSarif,
   toHtml,
@@ -79,12 +80,18 @@ export function scanCommand(): Command {
 
       let all: Diagnostic[] = [];
       let cachedCount = 0;
+      // Lines scanned, so a dashboard can score findings per thousand lines.
+      let loc = 0;
+      const countLines = (content: string): void => {
+        loc += content.split('\n').length;
+      };
       const start = Date.now();
 
       const useWorkers = files.length > WORKER_THRESHOLD && config.maxWorkers > 1;
 
       if (useWorkers) {
         const inputs = files.map((file) => ({ filePath: file, content: fs.readFileSync(file, 'utf8') }));
+        inputs.forEach((i) => countLines(i.content));
         const pool = new WorkerPool(config);
         try {
           const results = await pool.analyzeFiles(inputs);
@@ -98,6 +105,7 @@ export function scanCommand(): Command {
         try {
           for (const file of files) {
             const content = fs.readFileSync(file, 'utf8');
+            countLines(content);
             const key = cacheKey(content, enabledRuleIds);
             const cached = cache.get(key);
             if (cached) {
@@ -137,7 +145,7 @@ export function scanCommand(): Command {
           await sendReport(
             opts.reportTo,
             opts.apiKey,
-            buildReportPayload(all, rootDir, new Date().toISOString())
+            buildReportPayload(all, rootDir, new Date().toISOString(), loc)
           );
           process.stderr.write(`Reported ${all.length} findings to ${opts.reportTo}\n`);
         } catch (err) {
@@ -156,7 +164,10 @@ export function scanCommand(): Command {
           payload = toSarif(all);
           break;
         case 'html':
-          payload = toHtml(all);
+          // Same per-KLOC score the dashboard and quality gate use.
+          payload = toHtml(all, {
+            score: scoreFindings({ errors: summary.error, warnings: summary.warning, infos: summary.info }, loc)
+          });
           break;
         case 'junit':
           payload = toJUnit(all);

@@ -10,7 +10,9 @@
  * node collect its `formal_parameters` identifiers, then flag every
  * `assignment_expression` / `augmented_assignment_expression` (whose innermost
  * enclosing function is that one) with a left side that is a member/subscript
- * access rooted at one of those parameters.
+ * access rooted at one of those parameters. Writing through a DOM event's
+ * target (`e.target.value = ""`, resetting an input) is the intended idiom and
+ * is not flagged.
  */
 
 import {
@@ -89,6 +91,26 @@ function rootIdentifier(expr: TSNode): string | null {
   return cur && cur.type === 'identifier' ? cur.text : null;
 }
 
+/** Event properties that reach a DOM node owned by the page, not the caller. */
+const EVENT_TARGETS = new Set(['target', 'currentTarget', 'srcElement']);
+
+/**
+ * True for `e.target.value = …`: writing through an event's target updates the
+ * DOM element (e.g. resetting a file input), which is the intended idiom.
+ */
+function writesThroughEventTarget(left: TSNode): boolean {
+  let cur: TSNode | null = left;
+  let first: string | null = null;
+  while (cur && (cur.type === 'member_expression' || cur.type === 'subscript_expression')) {
+    const object: TSNode | null = cur.childForFieldName('object');
+    if (object?.type === 'identifier' && cur.type === 'member_expression') {
+      first = cur.childForFieldName('property')?.text ?? null;
+    }
+    cur = object;
+  }
+  return first !== null && EVENT_TARGETS.has(first) && left.childForFieldName('object')?.type !== 'identifier';
+}
+
 export const objectMutationRule: Rule = {
   id: 'IED-L004',
   name: 'object-mutation',
@@ -138,7 +160,7 @@ export const objectMutationRule: Rule = {
       const left = node.childForFieldName('left');
       if (!left || (left.type !== 'member_expression' && left.type !== 'subscript_expression')) continue;
       const root = rootIdentifier(left);
-      if (root && fn.params.has(root)) fn.mutations.push(node);
+      if (root && fn.params.has(root) && !writesThroughEventTarget(left)) fn.mutations.push(node);
     }
 
     for (const fn of functions) {

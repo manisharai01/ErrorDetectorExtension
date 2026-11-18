@@ -14,6 +14,15 @@ test('findUnusedExports flags an export no file imports', async () => {
   assert.deepEqual(unused.map((u) => u.name).sort(), ['dead']);
 });
 
+test('findUnusedExports never flags a default export, even a named one', async () => {
+  const unused = await findUnusedExports([
+    { filePath: 'Page.tsx', content: 'export default function Page() { return null; }' },
+    { filePath: 'App.tsx', content: 'import Page from "./Page";\nexport const routes = [Page];' },
+    { filePath: 'main.tsx', content: 'import { routes } from "./App";\nrender(routes);' }
+  ]);
+  assert.deepEqual(unused.map((u) => u.name), []);
+});
+
 test('findUnusedExports treats a name imported anywhere as used', async () => {
   const unused = await findUnusedExports([
     { filePath: 'a.ts', content: 'export const helper = 1;' },

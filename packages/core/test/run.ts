@@ -32,6 +32,7 @@ import './csharp.test';
 import './ruby.test';
 import './dart.test';
 import './flow.test';
+import './precision.test';
 import './plugin-loader.test';
 import './hotspots.test';
 

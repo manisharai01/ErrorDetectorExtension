@@ -8,6 +8,9 @@
  * Conservative heuristic: flag a `lambda` whose body references a name equal to
  * the loop variable of an enclosing `for_statement`/`for_in_clause`, when the
  * lambda does NOT capture that name as a parameter default (`lambda x=x: ...`).
+ * A lambda that is consumed on the spot — the `key=` of `sorted`/`min`/`max`/
+ * `.sort`, or the function given to `map`/`filter`/`reduce` — runs before the
+ * loop variable changes, so it is not flagged (same exemption as bugbear B023).
  */
 
 import {
@@ -68,6 +71,40 @@ function lambdaBoundNames(lambda: TSNode): Set<string> {
   return bound;
 }
 
+/** Calls that use a `key=` function immediately. */
+const KEY_CONSUMERS = new Set(['sorted', 'min', 'max', 'sort', 'nlargest', 'nsmallest', 'groupby']);
+/** Calls that apply a function argument immediately (or lazily within the expression). */
+const FUNCTION_CONSUMERS = new Set(['map', 'filter', 'reduce']);
+
+/** Name of the function a call invokes (`sorted`, `list.sort` -> `sort`). */
+function calledName(call: TSNode | null): string | null {
+  const fn = call?.childForFieldName('function');
+  if (!fn) return null;
+  if (fn.type === 'identifier') return fn.text;
+  if (fn.type === 'attribute') return fn.childForFieldName('attribute')?.text ?? null;
+  return null;
+}
+
+/** True when the lambda is used immediately by the call it is passed to. */
+function consumedImmediately(lambda: TSNode): boolean {
+  const parent = lambda.parent;
+  if (parent?.type === 'keyword_argument') {
+    // sorted(xs, key=lambda …) / items.sort(key=lambda …)
+    const args = parent.parent;
+    return (
+      parent.childForFieldName('name')?.text === 'key' &&
+      args?.type === 'argument_list' &&
+      KEY_CONSUMERS.has(calledName(args.parent) ?? '')
+    );
+  }
+  // map(lambda …, xs) / filter(lambda …, xs): the function is the first argument.
+  return (
+    parent?.type === 'argument_list' &&
+    parent.namedChild(0)?.startIndex === lambda.startIndex &&
+    FUNCTION_CONSUMERS.has(calledName(parent.parent) ?? '')
+  );
+}
+
 /** True if `body` references `name` as an identifier (read of the closed-over var). */
 function bodyReferences(body: TSNode, name: string): boolean {
   if (body.type === 'identifier') return body.text === name;
@@ -101,7 +138,7 @@ export const lateBindingClosureRule: Rule = {
 
   run(ctx: RuleContext): void {
     for (const node of ctx.nodesOfType('lambda')) {
-      if (node.type === 'lambda') {
+      if (node.type === 'lambda' && !consumedImmediately(node)) {
         const loopVars = enclosingLoopVars(node);
         if (loopVars.size > 0) {
           const bound = lambdaBoundNames(node);
